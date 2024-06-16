@@ -44,8 +44,9 @@ else()
 endif()
 
 add_executable(${PSHELL}
-    pshell/tar_cmd.c
     pshell/file_cmds.c
+    pshell/fs_cmds.c
+    pshell/tar_cmd.c
     pshell/main.c
 )
 

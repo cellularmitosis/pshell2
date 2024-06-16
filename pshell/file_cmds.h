@@ -1,5 +1,5 @@
-#ifndef _FS_CMDS_H
-#define _FS_CMDS_H
+#ifndef _FILE_CMDS_H
+#define _FILE_CMDS_H
 
 #include <stdint.h>
 

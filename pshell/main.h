@@ -5,13 +5,19 @@
 
 typedef char buf_t[128];
 
+// Shell global state:
 extern int sh_argc;
 extern char* sh_argv[];
 extern buf_t sh_message;
 
-char* full_path(const char* name);
+// Filesystem global state:
+extern bool mounted;
 
+// Util functions:
+char* full_path(const char* name);
 bool bad_mount(bool need);
 bool bad_name(void);
+bool prompt_Yn(char* prompt);
+bool prompt_yN(char* prompt);
 
 #endif

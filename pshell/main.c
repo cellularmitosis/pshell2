@@ -32,6 +32,7 @@
 #endif
 
 #include "file_cmds.h"
+#include "fs_cmds.h"
 #include "tar_cmd.h"
 
 // #define COPYRIGHT "\u00a9" // for UTF8
@@ -51,7 +52,7 @@ static uint32_t screen_x = 80, screen_y = 24;
 static lfs_file_t file;
 static buf_t cmd_buffer, path, curdir = "/";
 buf_t sh_message;
-static bool mounted = false;
+bool mounted = false;
 static bool run = true;
 
 static void set_translate_crlf(bool enable) {
@@ -76,6 +77,33 @@ static void echo_key(char c) {
     if (c == '\r') {
         putchar('\n');
     }
+}
+
+static bool prompt_yn(char* prompt, char default_) {
+    while(true) {
+        printf(prompt);
+        printf(" [Y/n] ");
+        fflush(stdout);
+        char c = getchar();
+        if (c == '\r') {
+            c = default_;
+        }
+        if (c == 'y' || c == 'Y') {
+            return true;
+        }
+        if (c == 'n' || c == 'N') {
+            return false;
+        }
+        printf("'%c' is not a valid response.\n", c);
+    }
+}
+
+bool prompt_Yn(char* prompt) {
+    return prompt_yn(prompt, 'y');
+}
+
+bool prompt_yN(char* prompt) {
+    return prompt_yn(prompt, 'n');
 }
 
 char* full_path(const char* name) {
@@ -289,84 +317,6 @@ static uint8_t yget_cmd(void) {
     }
 }
 
-static uint8_t mount_cmd(void) {
-    if (bad_mount(false)) {
-        return 1;
-    }
-    if (fs_mount() != LFS_ERR_OK) {
-        strcpy(sh_message, "Error mounting filesystem");
-        return 2;
-    }
-    mounted = true;
-    strcpy(sh_message, "mounted");
-    return 0;
-}
-
-static uint8_t unmount_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (fs_unmount() != LFS_ERR_OK) {
-        strcpy(sh_message, "Error unmounting filesystem");
-        return 2;
-    }
-    mounted = false;
-    strcpy(sh_message, "unmounted");
-    return 0;
-}
-
-static uint8_t format_cmd(void) {
-    if (bad_mount(false)) {
-        return 1;
-    }
-    printf("are you sure (y/N) ? ");
-    fflush(stdout);
-    parse_cmd();
-    if ((sh_argc == 0) || ((sh_argv[0][0] | ' ') != 'y')) {
-        strcpy(sh_message, "user cancelled");
-        return 2;
-    }
-    if (fs_format() != LFS_ERR_OK) {
-        strcpy(sh_message, "Error formating filesystem");
-        return 3;
-    }
-    strcpy(sh_message, "formatted");
-    return 0;
-}
-
-static void disk_space(uint64_t n, char* buf) {
-    double d = n;
-    static const char* suffix[] = {"B", "KB", "MB", "GB", "TB"};
-    char** sfx = (char**)suffix;
-    while (d >= 1000.0) {
-        d /= 1000.0;
-        sfx++;
-    }
-    sprintf(buf, "%.1f%s", d, *sfx);
-}
-
-static uint8_t status_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    struct fs_fsstat_t stat;
-    fs_fsstat(&stat);
-    const char percent = 37;
-    char total_size[32], used_size[32];
-    disk_space((int64_t)stat.block_count * stat.block_size, total_size);
-    disk_space((int64_t)stat.blocks_used * stat.block_size, used_size);
-#ifndef NDEBUG
-    printf("\ntext size 0x%x (%d), bss size 0x%x (%d)", stat.text_size, stat.text_size,
-           stat.bss_size, stat.bss_size);
-#endif
-    sprintf(sh_message,
-            "\ntotal blocks %d, block size %d, used %s out of %s, %1.1f%c "
-            "used.\n",
-            (int)stat.block_count, (int)stat.block_size, used_size, total_size,
-            stat.blocks_used * 100.0 / stat.block_count, percent);
-    return 0;
-}
-
 static uint8_t ls_cmd(void) {
     if (bad_mount(true)) {
         return 1;
@@ -394,7 +344,7 @@ static uint8_t ls_cmd(void) {
         if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
             if (info.type == LFS_TYPE_DIR) {
                 if ((info.name[0] != '.') || show_all) {
-                    printf(" %7d [%s]\n", info.size, info.name);
+                    printf(" %7d %s/\n", info.size, info.name);
                 }
             }
         }
@@ -516,11 +466,7 @@ static uint8_t usbboot_cmd(void) {
 #endif
 
 static uint8_t quit_cmd(void) {
-    printf("\nare you sure (Y/n) ? ");
-    fflush(stdout);
-    char c = getchar();
-    putchar('\n');
-    if (c != 'y' && c != 'Y' && c != '\r') {
+    if (!prompt_Yn("are you sure?")) {
         return 1;
     }
     // release any resources we were using
@@ -800,6 +746,7 @@ int main(void) {
         exit(-1);
     }
     if (fs_mount() != LFS_ERR_OK) {
+        // TODO: refactor this to use prompt_Yn, format_cmd and mount_cmd.
         printf("The flash file system appears corrupt or unformatted!\n"
                " would you like to format it (Y/n) ? ");
         fflush(stdout);
