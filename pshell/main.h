@@ -6,7 +6,7 @@
 extern int argc;
 extern char* argv[];
 
-bool check_mount(bool need);
-bool check_name(void);
+bool bad_mount(bool need);
+bool bad_name(void);
 
 #endif

@@ -146,7 +146,7 @@ static int xmodem_rx_cb(uint8_t* buf, uint32_t len) {
 
 static int xmodem_tx_cb(uint8_t* buf, uint32_t len) { return fs_file_read(&file, buf, len); }
 
-bool check_mount(bool need) {
+bool bad_mount(bool need) {
     if (mounted == need) {
         return false;
     }
@@ -154,7 +154,7 @@ bool check_mount(bool need) {
     return true;
 }
 
-bool check_name(void) {
+bool bad_name(void) {
     if (argc > 1) {
         return false;
     }
@@ -163,10 +163,10 @@ bool check_name(void) {
 }
 
 static uint8_t xput_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
-    if (check_name()) {
+    if (bad_name()) {
         return 2;
     }
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) <
@@ -184,7 +184,7 @@ static uint8_t xput_cmd(void) {
 }
 
 static uint8_t yput_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     if (argc > 1) {
@@ -360,10 +360,10 @@ static uint8_t cp_cmd(void) {
 }
 
 static uint8_t cat_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
-    if (check_name()) {
+    if (bad_name()) {
         return 2;
     }
     lfs_file_t file;
@@ -395,10 +395,10 @@ static uint8_t cat_cmd(void) {
 }
 
 static uint8_t xget_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
-    if (check_name()) {
+    if (bad_name()) {
         return 2;
     }
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
@@ -413,10 +413,10 @@ static uint8_t xget_cmd(void) {
 }
 
 static uint8_t yget_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
-    if (check_name()) {
+    if (bad_name()) {
         return 2;
     }
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
@@ -439,10 +439,10 @@ static uint8_t yget_cmd(void) {
 }
 
 static uint8_t mkdir_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
-    if (check_name()) {
+    if (bad_name()) {
         return 2;
     }
     if (fs_mkdir(full_path(argv[1])) < LFS_ERR_OK) {
@@ -501,10 +501,10 @@ static bool clean_dir(char* name) {
 }
 
 static uint8_t rm_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
-    if (check_name()) {
+    if (bad_name()) {
         return 2;
     }
     bool recursive = false;
@@ -559,7 +559,7 @@ static uint8_t rm_cmd(void) {
 }
 
 static uint8_t mount_cmd(void) {
-    if (check_mount(false)) {
+    if (bad_mount(false)) {
         return 1;
     }
     if (fs_mount() != LFS_ERR_OK) {
@@ -572,7 +572,7 @@ static uint8_t mount_cmd(void) {
 }
 
 static uint8_t unmount_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     if (fs_unmount() != LFS_ERR_OK) {
@@ -585,7 +585,7 @@ static uint8_t unmount_cmd(void) {
 }
 
 static uint8_t format_cmd(void) {
-    if (check_mount(false)) {
+    if (bad_mount(false)) {
         return 1;
     }
     printf("are you sure (y/N) ? ");
@@ -615,7 +615,7 @@ static void disk_space(uint64_t n, char* buf) {
 }
 
 static uint8_t status_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     struct fs_fsstat_t stat;
@@ -637,7 +637,7 @@ static uint8_t status_cmd(void) {
 }
 
 static uint8_t ls_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     int show_all = 0;
@@ -683,7 +683,7 @@ static uint8_t ls_cmd(void) {
 }
 
 static uint8_t cd_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     if (argc < 2) {
@@ -727,7 +727,7 @@ cd_done:
 }
 
 static uint8_t cc_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     if (!cc(0, argc, argv)) {
@@ -739,7 +739,7 @@ static uint8_t cc_cmd(void) {
 
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
 static uint8_t tests_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     // TODO: make run_tests return an exit status.
@@ -749,7 +749,7 @@ static uint8_t tests_cmd(void) {
 #endif
 
 static uint8_t vi_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     // TODO: vi always returns 0

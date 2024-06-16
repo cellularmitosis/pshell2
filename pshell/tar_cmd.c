@@ -3,7 +3,7 @@
 #include "main.h"
 
 uint8_t tar_cmd(void) {
-    if (check_mount(true)) {
+    if (bad_mount(true)) {
         return 1;
     }
     // TODO: make tar return an exit status.
