@@ -16,7 +16,6 @@
 #include "hardware/structs/scb.h"
 #include "hardware/watchdog.h"
 
-#include "pico/bootrom.h"
 #include "pico/stdio.h"
 #include "pico/stdlib.h"
 #include "pico/sync.h"
@@ -28,6 +27,7 @@
 #include "tests.h"
 #endif
 
+#include "cpu_cmds.h"
 #include "file_cmds.h"
 #include "fs_cmds.h"
 #include "modem_cmds.h"
@@ -38,7 +38,6 @@
 
 #include "terminal.h"
 
-// #define COPYRIGHT "\u00a9" // for UTF8
 #define COPYRIGHT "(c)" // for ASCII
 
 // Shell global state:
@@ -60,6 +59,52 @@ buf_t path_tmp;
 buf_t sh_message;
 
 static bool run = true;
+
+static uint8_t cc_cmd(void) {
+    if (bad_mount(true)) {
+        return 1;
+    }
+    if (!cc(0, sh_argc, sh_argv)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// clang-format off
+cmd_t cmd_table[] = {
+    {"cat",     cat_cmd,        "display a text file"},
+    {"cc",      cc_cmd,         "compile & run C source file. cc -h for help"},
+    {"cd",      cd_cmd,         "change directory"},
+    {"clear",   clear_cmd,      "clear the screen"},
+    {"cp",      cp_cmd,         "copy a file"},
+    {"df",      df_cmd,         "display the filesystem usage"},
+    {"format",  format_cmd,     "format the filesystem"},
+    {"ls",      ls_cmd,         "list a directory, -a to show hidden files"},
+    {"mkdir",   mkdir_cmd,      "create a directory"},
+    {"mount",   mount_cmd,      "mount the filesystem"},
+    {"mv",      mv_cmd,         "rename a file or directory"},
+    {"quit",    quit_cmd,       "shutdown the system"},
+    {"reboot",  reboot_cmd,     "restart the system"},
+    {"resize",  resize_cmd,     "establish screen dimensions"},
+    {"rm",      rm_cmd,         "remove a file or directory. -r for recursive"},
+    {"tar",     tar_cmd,        "manage tar archives"},
+#if !defined(NDEBUG) || defined(PSHELL_TESTS)
+    {"tests",   tests_cmd,      "run all tests"},
+#endif
+    {"unmount", unmount_cmd,    "unmount the filesystem"},
+#if LIB_PICO_STDIO_USB
+    {"usbboot", usbboot_cmd,    "reboot into the USB bootloader"},
+#endif
+	{"version", version_cmd,    "display pico shell's version"},
+    {"vi",      vi_cmd,         "edit file(s) with vi"},
+    {"xget",    xget_cmd,       "get a file (xmodem)"},
+    {"xput",    xput_cmd,       "put a file (xmodem)"},
+    {"yget",    yget_cmd,       "get a file (ymodem)"},
+    {"yput",    yput_cmd,       "put a file (ymodem)"},
+	{0}
+};
+// clang-format on
 
 void set_translate_crlf(bool enable) {
     stdio_driver_t* driver;
@@ -186,17 +231,6 @@ bool bad_name(void) {
     return true;
 }
 
-static uint8_t cc_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (!cc(0, sh_argc, sh_argv)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
 static uint8_t tests_cmd(void) {
     if (bad_mount(true)) {
@@ -207,63 +241,6 @@ static uint8_t tests_cmd(void) {
     return 0;
 }
 #endif
-
-static uint8_t reboot_cmd(void) {
-    // release any resources we were using
-    if (mounted) {
-        savehist();
-        fs_unmount();
-    }
-    watchdog_reboot(0, 0, 1);
-    return 0;
-}
-
-#if LIB_PICO_STDIO_USB
-static uint8_t usbboot_cmd(void) {
-    // release any resources we were using
-    if (mounted) {
-        savehist();
-        fs_unmount();
-    }
-    reset_usb_boot(0, 0);
-    return 0;
-}
-#endif
-
-// clang-format off
-cmd_t cmd_table[] = {
-    {"cat",     cat_cmd,        "display a text file"},
-    {"cc",      cc_cmd,         "compile & run C source file. cc -h for help"},
-    {"cd",      cd_cmd,         "change directory"},
-    {"clear",   clear_cmd,      "clear the screen"},
-    {"cp",      cp_cmd,         "copy a file"},
-    {"df",      df_cmd,         "display the filesystem usage"},
-    {"format",  format_cmd,     "format the filesystem"},
-    {"ls",      ls_cmd,         "list a directory, -a to show hidden files"},
-    {"mkdir",   mkdir_cmd,      "create a directory"},
-    {"mount",   mount_cmd,      "mount the filesystem"},
-    {"mv",      mv_cmd,         "rename a file or directory"},
-    {"quit",    quit_cmd,       "shutdown the system"},
-    {"reboot",  reboot_cmd,     "restart the system"},
-    {"resize",  resize_cmd,     "establish screen dimensions"},
-    {"rm",      rm_cmd,         "remove a file or directory. -r for recursive"},
-    {"tar",     tar_cmd,        "manage tar archives"},
-#if !defined(NDEBUG) || defined(PSHELL_TESTS)
-    {"tests",   tests_cmd,      "run all tests"},
-#endif
-    {"unmount", unmount_cmd,    "unmount the filesystem"},
-#if LIB_PICO_STDIO_USB
-    {"usbboot", usbboot_cmd,    "reboot into the USB bootloader"},
-#endif
-	{"version", version_cmd,    "display pico shell's version"},
-    {"vi",      vi_cmd,         "edit file(s) with vi"},
-    {"xget",    xget_cmd,       "get a file (xmodem)"},
-    {"xput",    xput_cmd,       "put a file (xmodem)"},
-    {"yget",    yget_cmd,       "get a file (ymodem)"},
-    {"yput",    yput_cmd,       "put a file (ymodem)"},
-	{0}
-};
-// clang-format on
 
 static uint8_t help(void) {
     printf("\n");
