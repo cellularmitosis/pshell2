@@ -1,3 +1,20 @@
+This is a fork of https://github.com/lurk101/pshell which has been archived.
+
+Total noob guide:
+* Download a copy of the SDK from https://github.com/raspberrypi/pico-sdk
+* Export the SDK file path as PICO_SDK_PATH from your shell rc file
+* Run ./build.sh
+* Drag build/pshell_usb.uf2 into your Pi Pico.
+
+Once you have that up and running:
+* `vi hello.c`
+* Paste in a copy of [c-examples/hello.c](c-examples/hello.c), save and exit vi
+** do this with `ESC :wq`, but you may have to pause slightly after `ESC`
+* `cc hello.c`
+
+Original README follows:
+----
+
 A tiny Raspberry Pico shell with flash file system, Vi, and C compiler.
 
 This project explores to what extent a reasonably competent self-hosted programming environment can be built on a modern embedded SoC.
