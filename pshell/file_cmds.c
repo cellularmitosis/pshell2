@@ -269,3 +269,84 @@ uint8_t rm_cmd(void) {
         return 0;
     }
 }
+
+uint8_t cat_cmd(void) {
+    if (bad_mount(true)) {
+        return 1;
+    }
+    if (bad_name()) {
+        return 2;
+    }
+    lfs_file_t file;
+    if (fs_file_open(&file, full_path(sh_argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
+        strcpy(sh_message, "error opening file");
+        return 3;
+    }
+    int l = fs_file_seek(&file, 0, LFS_SEEK_END);
+    fs_file_seek(&file, 0, LFS_SEEK_SET);
+    char buf[256];
+    uint8_t ret = 0;
+    while (l) {
+        int l2 = l;
+        if (l2 > sizeof(buf)) {
+            l2 = sizeof(buf);
+        }
+        if (fs_file_read(&file, buf, l2) != l2) {
+            sprintf(sh_message, "error reading file");
+            ret = 4;
+            break;
+        }
+        for (int i = 0; i < l2; ++i) {
+            putchar(buf[i]);
+        }
+        l -= l2;
+    }
+    fs_file_close(&file);
+    return ret;
+}
+
+uint8_t ls_cmd(void) {
+    if (bad_mount(true)) {
+        return 1;
+    }
+    int show_all = 0;
+    char** av = sh_argv;
+    if ((sh_argc > 1) && (strcmp(av[1], "-a") == 0)) {
+        sh_argc--;
+        av++;
+        show_all = 1;
+    }
+    if (sh_argc > 1) {
+        full_path(av[1]);
+    } else {
+        full_path("");
+    }
+    lfs_dir_t dir;
+    if (fs_dir_open(&dir, path) < LFS_ERR_OK) {
+        strcpy(sh_message, "not a directory");
+        return 2;
+    }
+    printf("\n");
+    struct lfs_info info;
+    while (fs_dir_read(&dir, &info) > 0) {
+        if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
+            if (info.type == LFS_TYPE_DIR) {
+                if ((info.name[0] != '.') || show_all) {
+                    printf(" %7d %s/\n", info.size, info.name);
+                }
+            }
+        }
+    }
+    fs_dir_rewind(&dir);
+    while (fs_dir_read(&dir, &info) > 0) {
+        if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
+            if (info.type == LFS_TYPE_REG) {
+                if ((info.name[0] != '.') || show_all) {
+                    printf(" %7d %s\n", info.size, info.name);
+                }
+            }
+        }
+    }
+    fs_dir_close(&dir);
+    return 0;
+}

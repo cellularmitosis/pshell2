@@ -11,6 +11,8 @@ extern int sh_argc;
 extern char* sh_argv[];
 extern buf_t sh_message;
 extern buf_t sh_cmd_buffer;
+extern buf_t path;
+extern buf_t curdir;
 
 // Terminal global state:
 extern uint8_t term_cols;

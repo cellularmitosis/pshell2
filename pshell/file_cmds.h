@@ -8,4 +8,7 @@ uint8_t cp_cmd(void);
 uint8_t mkdir_cmd(void);
 uint8_t rm_cmd(void);
 
+uint8_t ls_cmd(void);
+uint8_t cat_cmd(void);
+
 #endif
