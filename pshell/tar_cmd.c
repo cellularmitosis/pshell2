@@ -7,6 +7,6 @@ uint8_t tar_cmd(void) {
         return 1;
     }
     // TODO: make tar return an exit status.
-    tar(argc, argv);
+    tar(sh_argc, sh_argv);
     return 0;
 }

@@ -45,6 +45,7 @@ endif()
 
 add_executable(${PSHELL}
     pshell/tar_cmd.c
+    pshell/file_cmds.c
     pshell/main.c
 )
 

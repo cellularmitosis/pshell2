@@ -6,10 +6,9 @@
 
 #include "crc16.h"
 #include "xmodem.h"
+#include "../pshell/main.h"
 
 #include "pico/stdio.h"
-
-extern char result[128];
 
 #define SOH 0x01
 #define STX 0x02
@@ -162,7 +161,7 @@ int xmodemTransmit(xmodem_cb_t cb) {
                     if ((c = getbyte(DLY_1S)) == CAN) {
                         putchar(ACK);
                         flushreceive();
-                        strcpy(result, "canceled by remote");
+                        strcpy(sh_message, "canceled by remote");
                         return -1; /* canceled by remote */
                     }
                     break;
@@ -173,7 +172,7 @@ int xmodemTransmit(xmodem_cb_t cb) {
         }
         putCAN();
         flushreceive();
-        strcpy(result, "no sync");
+        strcpy(sh_message, "no sync");
         return -2; /* no sync */
         while (!done) {
         start_trans:
@@ -210,7 +209,7 @@ int xmodemTransmit(xmodem_cb_t cb) {
                             if ((c = getbyte(DLY_1S)) == CAN) {
                                 putchar(ACK);
                                 flushreceive();
-                                strcpy(result, "cancelled by remote");
+                                strcpy(sh_message, "cancelled by remote");
                                 return -1; /* canceled by remote */
                             }
                             break;
@@ -222,7 +221,7 @@ int xmodemTransmit(xmodem_cb_t cb) {
                 }
                 putCAN();
                 flushreceive();
-                strcpy(result, "transmit error");
+                strcpy(sh_message, "transmit error");
                 return -4; /* xmit error */
             } else {
                 for (retry = 0; retry < 10; ++retry) {
@@ -232,10 +231,10 @@ int xmodemTransmit(xmodem_cb_t cb) {
                 }
                 flushreceive();
                 if (c == ACK) {
-                    sprintf(result, "%d bytes transferred", len);
+                    sprintf(sh_message, "%d bytes transferred", len);
                     return len;
                 }
-                strcpy(result, "ACK timeout");
+                strcpy(sh_message, "ACK timeout");
                 return -5;
             }
         }
