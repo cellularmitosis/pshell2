@@ -25,14 +25,13 @@
 #include "io.h"
 #include "readln.h"
 #include "vi.h"
-#include "xmodem.h"
-#include "ymodem.h"
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
 #include "tests.h"
 #endif
 
 #include "file_cmds.h"
 #include "fs_cmds.h"
+#include "modem_cmds.h"
 #include "tar_cmd.h"
 
 // #define COPYRIGHT "\u00a9" // for UTF8
@@ -49,13 +48,12 @@ int sh_argc;
 char* sh_argv[MAX_ARGS + 1];
 
 static uint32_t screen_x = 80, screen_y = 24;
-static lfs_file_t file;
 static buf_t cmd_buffer, path, curdir = "/";
 buf_t sh_message;
 bool mounted = false;
 static bool run = true;
 
-static void set_translate_crlf(bool enable) {
+void set_translate_crlf(bool enable) {
     stdio_driver_t* driver;
 #if LIB_PICO_STDIO_UART
     driver = &stdio_uart;
@@ -164,14 +162,6 @@ static void parse_cmd(void) {
     sh_argv[sh_argc] = NULL;
 }
 
-static int xmodem_rx_cb(uint8_t* buf, uint32_t len) {
-    if (fs_file_write(&file, buf, len) != len) {
-        printf("error writing file\n");
-    }
-}
-
-static int xmodem_tx_cb(uint8_t* buf, uint32_t len) { return fs_file_read(&file, buf, len); }
-
 bool bad_mount(bool need) {
     if (mounted == need) {
         return false;
@@ -186,56 +176,6 @@ bool bad_name(void) {
     }
     strcpy(sh_message, "missing file or directory name");
     return true;
-}
-
-static uint8_t xput_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (bad_name()) {
-        return 2;
-    }
-    if (fs_file_open(&file, full_path(sh_argv[1]), LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) <
-        LFS_ERR_OK) {
-        strcpy(sh_message, "Can't create file");
-        return 3;
-    }
-    set_translate_crlf(false);
-    xmodemReceive(xmodem_rx_cb);
-    set_translate_crlf(true);
-    busy_wait_ms(3000);
-    sprintf(sh_message, "\nfile transfered, size: %d", fs_file_seek(&file, 0, LFS_SEEK_END));
-    fs_file_close(&file);
-    return 0;
-}
-
-static uint8_t yput_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (sh_argc > 1) {
-        strcpy(sh_message, "yput doesn't take a parameter");
-        return 2;
-    }
-    char* tmpname = strdup(full_path("ymodem.tmp"));
-    if (fs_file_open(&file, tmpname, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) < LFS_ERR_OK) {
-        strcpy(sh_message, "Can't create file");
-        return 3;
-    }
-    set_translate_crlf(false);
-    char name[256];
-    int res = Ymodem_Receive(&file, 0x7fffffff, name);
-    set_translate_crlf(true);
-    fs_file_close(&file);
-    if (res >= 0) {
-        sprintf(sh_message, "\nfile transfered, size: %d", fs_file_seek(&file, 0, LFS_SEEK_END));
-        fs_rename(tmpname, full_path(name));
-    } else {
-        strcpy(sh_message, "File transfer failed");
-        fs_remove(tmpname);
-    }
-    free(tmpname);
-    return 0;
 }
 
 static uint8_t cat_cmd(void) {
@@ -271,50 +211,6 @@ static uint8_t cat_cmd(void) {
     }
     fs_file_close(&file);
     return ret;
-}
-
-static uint8_t xget_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (bad_name()) {
-        return 2;
-    }
-    if (fs_file_open(&file, full_path(sh_argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
-        strcpy(sh_message, "Can't open file");
-        return 3;
-    }
-    set_translate_crlf(false);
-    int byte_count = xmodemTransmit(xmodem_tx_cb);
-    set_translate_crlf(true);
-    fs_file_close(&file);
-    return (byte_count < 0) ? 1 : 0;
-}
-
-static uint8_t yget_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (bad_name()) {
-        return 2;
-    }
-    if (fs_file_open(&file, full_path(sh_argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
-        strcpy(sh_message, "Can't open file");
-        return 3;
-    }
-    int siz = fs_file_seek(&file, 0, LFS_SEEK_END);
-    fs_file_seek(&file, 0, LFS_SEEK_SET);
-    set_translate_crlf(false);
-    int res = Ymodem_Transmit(full_path(sh_argv[1]), siz, &file);
-    set_translate_crlf(true);
-    fs_file_close(&file);
-    if (res) {
-        strcpy(sh_message, "File transfer failed");
-        return 4;
-    } else {
-        sprintf(sh_message, "%d bytes sent", siz);
-        return 0;
-    }
 }
 
 static uint8_t ls_cmd(void) {

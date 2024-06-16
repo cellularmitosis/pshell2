@@ -15,6 +15,7 @@ extern bool mounted;
 
 // Util functions:
 char* full_path(const char* name);
+void set_translate_crlf(bool enable);
 bool bad_mount(bool need);
 bool bad_name(void);
 bool prompt_Yn(char* prompt);
