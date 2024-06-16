@@ -30,7 +30,7 @@
 #include "tests.h"
 #endif
 
-//#define COPYRIGHT "\u00a9" // for UTF8
+// #define COPYRIGHT "\u00a9" // for UTF8
 #define COPYRIGHT "(c)" // for ASCII
 
 #define MAX_ARGS 16
@@ -70,31 +70,37 @@ void get_screen_xy(uint32_t* x, uint32_t* y) {
 
 static void echo_key(char c) {
     putchar(c);
-    if (c == '\r')
+    if (c == '\r') {
         putchar('\n');
+    }
 }
 
 char* full_path(const char* name) {
-    if (name == NULL)
+    if (name == NULL) {
         return NULL;
+    }
     if (name[0] == '/') {
         strcpy(path, name);
         return path;
     }
-    if (strncmp(name, "./", 2) == 0)
+    if (strncmp(name, "./", 2) == 0) {
         name += 2;
+    }
     strcpy(path, curdir);
     if (strncmp(name, "../", 3) != 0) {
-        if (name[0])
+        if (name[0]) {
             strcat(path, name);
+        }
     } else {
         name += 3; // root doen't have a parent
         char* cp = strrchr(path, '/');
-        if (cp != NULL)
+        if (cp != NULL) {
             *cp = 0;
+        }
         cp = strrchr(path, '/');
-        if (cp != NULL)
+        if (cp != NULL) {
             *(cp + 1) = 0;
+        }
         strcat(path, name);
     }
     return path;
@@ -128,31 +134,36 @@ static void parse_cmd(void) {
 }
 
 static int xmodem_rx_cb(uint8_t* buf, uint32_t len) {
-    if (fs_file_write(&file, buf, len) != len)
+    if (fs_file_write(&file, buf, len) != len) {
         printf("error writing file\n");
+    }
 }
 
 static int xmodem_tx_cb(uint8_t* buf, uint32_t len) { return fs_file_read(&file, buf, len); }
 
 static bool check_mount(bool need) {
-    if (mounted == need)
+    if (mounted == need) {
         return false;
+    }
     sprintf(result, "filesystem is %smounted", (need ? "not " : ""));
     return true;
 }
 
 static bool check_name(void) {
-    if (argc > 1)
+    if (argc > 1) {
         return false;
+    }
     strcpy(result, "missing file or directory name");
     return true;
 }
 
 static void xput_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
-    if (check_name())
+    }
+    if (check_name()) {
         return;
+    }
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) <
         LFS_ERR_OK) {
         strcpy(result, "Can't create file");
@@ -167,15 +178,15 @@ static void xput_cmd(void) {
 }
 
 static void yput_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     if (argc > 1) {
         strcpy(result, "yput doesn't take a parameter");
         return;
     }
     char* tmpname = strdup(full_path("ymodem.tmp"));
-    if (fs_file_open(&file, tmpname, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) <
-        LFS_ERR_OK) {
+    if (fs_file_open(&file, tmpname, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) < LFS_ERR_OK) {
         strcpy(result, "Can't create file");
         return;
     }
@@ -234,16 +245,18 @@ int check_from_to_parms(char** from, char** to, int copy) {
             char* name = strrchr(*from, '/') + 1;
             bool append_slash = (*to)[strlen(*to) - 1] == '/' ? false : true;
             int l = strlen(*to) + strlen(name) + 1;
-            if (append_slash)
+            if (append_slash) {
                 l++;
+            }
             char* to2 = malloc(l);
             if (!to2) {
                 strcpy(result, "no memory");
                 break;
             }
             strcpy(to2, *to);
-            if (append_slash)
+            if (append_slash) {
                 strcat(to2, "/");
+            }
             strcat(to2, name);
             free(*to);
             *to = to2;
@@ -251,10 +264,12 @@ int check_from_to_parms(char** from, char** to, int copy) {
         rc = 0;
     } while (0);
     if (rc) {
-        if (*from)
+        if (*from) {
             free(*from);
-        if (*to)
+        }
+        if (*to) {
             free(*to);
+        }
     }
     return rc;
 }
@@ -262,13 +277,15 @@ int check_from_to_parms(char** from, char** to, int copy) {
 static void mv_cmd(void) {
     char* from;
     char* to;
-    if (check_from_to_parms(&from, &to, 0))
+    if (check_from_to_parms(&from, &to, 0)) {
         return;
+    }
     struct lfs_info info;
-    if (fs_rename(from, to) < LFS_ERR_OK)
+    if (fs_rename(from, to) < LFS_ERR_OK) {
         sprintf(result, "could not move %s to %s", from, to);
-    else
+    } else {
         sprintf(result, "%s moved to %s", from, to);
+    }
     free(from);
     free(to);
 }
@@ -277,8 +294,9 @@ static void cp_cmd(void) {
     char* from;
     char* to;
     char* buf = NULL;
-    if (check_from_to_parms(&from, &to, 1))
+    if (check_from_to_parms(&from, &to, 1)) {
         return;
+    }
     lfs_file_t in, out;
     bool in_ok = false, out_ok = false;
     do {
@@ -306,26 +324,32 @@ static void cp_cmd(void) {
             l = fs_file_read(&in, buf, 4096);
         }
     } while (false);
-    if (in_ok)
+    if (in_ok) {
         fs_file_close(&in);
-    if (out_ok)
+    }
+    if (out_ok) {
         fs_file_close(&out);
+    }
     if (buf) {
-        if (out_ok && fs_getattr(from, 1, buf, 4) == 4 && strcmp(buf, "exe") == 0)
+        if (out_ok && fs_getattr(from, 1, buf, 4) == 4 && strcmp(buf, "exe") == 0) {
             fs_setattr(to, 1, buf, 4);
+        }
         free(buf);
     }
-    if (!result[0])
+    if (!result[0]) {
         sprintf(result, "file %s copied to %s", from, to);
+    }
     free(from);
     free(to);
 }
 
 static void cat_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
-    if (check_name())
+    }
+    if (check_name()) {
         return;
+    }
     lfs_file_t file;
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
         strcpy(result, "error opening file");
@@ -336,24 +360,28 @@ static void cat_cmd(void) {
     char buf[256];
     while (l) {
         int l2 = l;
-        if (l2 > sizeof(buf))
+        if (l2 > sizeof(buf)) {
             l2 = sizeof(buf);
+        }
         if (fs_file_read(&file, buf, l2) != l2) {
             sprintf(result, "error reading file");
             break;
         }
-        for (int i = 0; i < l2; ++i)
+        for (int i = 0; i < l2; ++i) {
             putchar(buf[i]);
+        }
         l -= l2;
     }
     fs_file_close(&file);
 }
 
 static void xget_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
-    if (check_name())
+    }
+    if (check_name()) {
         return;
+    }
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
         strcpy(result, "Can't open file");
         return;
@@ -365,10 +393,12 @@ static void xget_cmd(void) {
 }
 
 static void yget_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
-    if (check_name())
+    }
+    if (check_name()) {
         return;
+    }
     if (fs_file_open(&file, full_path(argv[1]), LFS_O_RDONLY) < LFS_ERR_OK) {
         strcpy(result, "Can't open file");
         return;
@@ -379,17 +409,20 @@ static void yget_cmd(void) {
     int res = Ymodem_Transmit(full_path(argv[1]), siz, &file);
     set_translate_crlf(true);
     fs_file_close(&file);
-    if (res)
+    if (res) {
         strcpy(result, "File transfer failed");
-    else
+    } else {
         sprintf(result, "%d bytes sent", siz);
+    }
 }
 
 static void mkdir_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
-    if (check_name())
+    }
+    if (check_name()) {
         return;
+    }
     if (fs_mkdir(full_path(argv[1])) < LFS_ERR_OK) {
         strcpy(result, "Can't create directory");
         return;
@@ -401,8 +434,9 @@ static char rmdir_path[256];
 
 static bool clean_dir(char* name) {
     int path_len = strlen(rmdir_path);
-    if (path_len)
+    if (path_len) {
         strcat(rmdir_path, "/");
+    }
     strcat(rmdir_path, name);
     lfs_dir_t dir_f;
     if (fs_dir_open(&dir_f, rmdir_path) < LFS_ERR_OK) {
@@ -410,12 +444,14 @@ static bool clean_dir(char* name) {
         return false;
     }
     struct lfs_info info;
-    while (fs_dir_read(&dir_f, &info) > 0)
-        if (info.type == LFS_TYPE_DIR && strcmp(info.name, ".") && strcmp(info.name, ".."))
+    while (fs_dir_read(&dir_f, &info) > 0) {
+        if (info.type == LFS_TYPE_DIR && strcmp(info.name, ".") && strcmp(info.name, "..")) {
             if (!clean_dir(info.name)) {
                 fs_dir_close(&dir_f);
                 return false;
             }
+        }
+    }
     fs_dir_rewind(&dir_f);
     while (fs_dir_read(&dir_f, &info) > 0) {
         if (info.type == LFS_TYPE_REG) {
@@ -442,10 +478,12 @@ static bool clean_dir(char* name) {
 }
 
 static void rm_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
-    if (check_name())
+    }
+    if (check_name()) {
         return;
+    }
     bool recursive = false;
     if (strcmp(argv[1], "-r") == 0) {
         if (argc < 3) {
@@ -468,28 +506,33 @@ static void rm_cmd(void) {
         lfs_dir_t dir;
         fs_dir_open(&dir, fp);
         int n = 0;
-        while (fs_dir_read(&dir, &info))
-            if ((strcmp(info.name, ".") != 0) && (strcmp(info.name, "..") != 0))
+        while (fs_dir_read(&dir, &info)) {
+            if ((strcmp(info.name, ".") != 0) && (strcmp(info.name, "..") != 0)) {
                 n++;
+            }
+        }
         fs_dir_close(&dir);
         if (n) {
             if (recursive) {
                 rmdir_path[0] = 0;
                 clean_dir(fp);
                 return;
-            } else
+            } else {
                 sprintf(result, "directory %s not empty", fp);
+            }
             return;
         }
     }
-    if (fs_remove(fp) < LFS_ERR_OK)
+    if (fs_remove(fp) < LFS_ERR_OK) {
         strcpy(result, "Can't remove file or directory");
+    }
     sprintf(result, "%s %s removed", isdir ? "directory" : "file", fp);
 }
 
 static void mount_cmd(void) {
-    if (check_mount(false))
+    if (check_mount(false)) {
         return;
+    }
     if (fs_mount() != LFS_ERR_OK) {
         strcpy(result, "Error mounting filesystem");
         return;
@@ -499,8 +542,9 @@ static void mount_cmd(void) {
 }
 
 static void unmount_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     if (fs_unmount() != LFS_ERR_OK) {
         strcpy(result, "Error unmounting filesystem");
         return;
@@ -510,8 +554,9 @@ static void unmount_cmd(void) {
 }
 
 static void format_cmd(void) {
-    if (check_mount(false))
+    if (check_mount(false)) {
         return;
+    }
     printf("are you sure (y/N) ? ");
     fflush(stdout);
     parse_cmd();
@@ -519,8 +564,9 @@ static void format_cmd(void) {
         strcpy(result, "user cancelled");
         return;
     }
-    if (fs_format() != LFS_ERR_OK)
+    if (fs_format() != LFS_ERR_OK) {
         strcpy(result, "Error formating filesystem");
+    }
     strcpy(result, "formatted");
 }
 
@@ -536,8 +582,9 @@ static void disk_space(uint64_t n, char* buf) {
 }
 
 static void status_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     struct fs_fsstat_t stat;
     fs_fsstat(&stat);
     const char percent = 37;
@@ -556,8 +603,9 @@ static void status_cmd(void) {
 }
 
 static void ls_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     int show_all = 0;
     char** av = argv;
     if ((argc > 1) && (strcmp(av[1], "-a") == 0)) {
@@ -565,10 +613,11 @@ static void ls_cmd(void) {
         av++;
         show_all = 1;
     }
-    if (argc > 1)
+    if (argc > 1) {
         full_path(av[1]);
-    else
+    } else {
         full_path("");
+    }
     lfs_dir_t dir;
     if (fs_dir_open(&dir, path) < LFS_ERR_OK) {
         strcpy(result, "not a directory");
@@ -576,29 +625,39 @@ static void ls_cmd(void) {
     }
     printf("\n");
     struct lfs_info info;
-    while (fs_dir_read(&dir, &info) > 0)
-        if (strcmp(info.name, ".") && strcmp(info.name, ".."))
-            if (info.type == LFS_TYPE_DIR)
-                if ((info.name[0] != '.') || show_all)
+    while (fs_dir_read(&dir, &info) > 0) {
+        if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
+            if (info.type == LFS_TYPE_DIR) {
+                if ((info.name[0] != '.') || show_all) {
                     printf(" %7d [%s]\n", info.size, info.name);
+                }
+            }
+        }
+    }
     fs_dir_rewind(&dir);
-    while (fs_dir_read(&dir, &info) > 0)
-        if (strcmp(info.name, ".") && strcmp(info.name, ".."))
-            if (info.type == LFS_TYPE_REG)
-                if ((info.name[0] != '.') || show_all)
+    while (fs_dir_read(&dir, &info) > 0) {
+        if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
+            if (info.type == LFS_TYPE_REG) {
+                if ((info.name[0] != '.') || show_all) {
                     printf(" %7d %s\n", info.size, info.name);
+                }
+            }
+        }
+    }
     fs_dir_close(&dir);
 }
 
 static void cd_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     if (argc < 2) {
         strcpy(path, "/");
         goto cd_done;
     }
-    if (strcmp(argv[1], ".") == 0)
+    if (strcmp(argv[1], ".") == 0) {
         goto cd_done;
+    }
     if (strcmp(argv[1], "..") == 0) {
         if (strcmp(curdir, "/") == 0) {
             strcpy(result, "not a directory");
@@ -606,12 +665,14 @@ static void cd_cmd(void) {
         }
         strcpy(path, curdir);
         char* cp = strrchr(path, '/');
-        if (cp == NULL)
+        if (cp == NULL) {
             cp = curdir;
+        }
         *cp = 0;
         cp = strrchr(path, '/');
-        if (cp != NULL)
+        if (cp != NULL) {
             *(cp + 1) = 0;
+        }
         goto cd_done;
     }
     full_path(argv[1]);
@@ -623,34 +684,39 @@ static void cd_cmd(void) {
     fs_dir_close(&dir);
 cd_done:
     strcpy(curdir, path);
-    if (curdir[strlen(curdir) - 1] != '/')
+    if (curdir[strlen(curdir) - 1] != '/') {
         strcat(curdir, "/");
+    }
     sprintf(result, "changed to %s", curdir);
 }
 
 static void cc_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     cc(0, argc, argv);
 }
 
 static void tar_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     tar(argc, argv);
 }
 
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
 static void tests_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     run_tests(argc, argv);
 }
 #endif
 
 static void vi_cmd(void) {
-    if (check_mount(true))
+    if (check_mount(true)) {
         return;
+    }
     vi(argc - 1, argv + 1);
 }
 
@@ -681,8 +747,9 @@ static void quit_cmd(void) {
     fflush(stdout);
     char c = getchar();
     putchar('\n');
-    if (c != 'y' && c != 'Y' && c != '\r')
+    if (c != 'y' && c != 'Y' && c != '\r') {
         return;
+    }
     // release any resources we were using
     if (mounted) {
         savehist();
@@ -710,39 +777,50 @@ static bool cursor_pos(uint32_t* x, uint32_t* y) {
         printf(VT_ESC "[6n");
         fflush(stdout);
         int k = getchar_timeout_us(100000);
-        if (k == PICO_ERROR_TIMEOUT)
+        if (k == PICO_ERROR_TIMEOUT) {
             break;
+        }
         char* cp = cmd_buffer;
         while (cp < cmd_buffer + sizeof cmd_buffer) {
             k = getchar_timeout_us(100000);
-            if (k == PICO_ERROR_TIMEOUT)
+            if (k == PICO_ERROR_TIMEOUT) {
                 break;
+            }
             *cp++ = k;
         }
-        if (cp == cmd_buffer)
+        if (cp == cmd_buffer) {
             break;
-        if (cmd_buffer[0] != '[')
+        }
+        if (cmd_buffer[0] != '[') {
             break;
+        }
         *cp = 0;
-        if (cp - cmd_buffer < 5)
+        if (cp - cmd_buffer < 5) {
             break;
+        }
         char* end;
         uint32_t row, col;
-        if (!isdigit(cmd_buffer[1]))
+        if (!isdigit(cmd_buffer[1])) {
             break;
+        }
         errno = 0;
         row = strtoul(cmd_buffer + 1, &end, 10);
-        if (errno)
+        if (errno) {
             break;
-        if (*end != ';' || !isdigit(end[1]))
+        }
+        if (*end != ';' || !isdigit(end[1])) {
             break;
+        }
         col = strtoul(end + 1, &end, 10);
-        if (errno)
+        if (errno) {
             break;
-        if (*end != 'R')
+        }
+        if (*end != 'R') {
             break;
-        if (row < 1 || col < 1 || (row | col) > 0x7fff)
+        }
+        if (row < 1 || col < 1 || (row | col) > 0x7fff) {
             break;
+        }
         *x = col;
         *y = row;
         rc = true;
@@ -757,15 +835,19 @@ static bool screen_size(void) {
     uint32_t cur_x, cur_y;
     do {
         set_translate_crlf(false);
-        if (!cursor_pos(&cur_x, &cur_y))
+        if (!cursor_pos(&cur_x, &cur_y)) {
             break;
+        }
         printf(VT_ESC "[999;999H");
-        if (!cursor_pos(&screen_x, &screen_y))
+        if (!cursor_pos(&screen_x, &screen_y)) {
             break;
-        if (cur_x > screen_x)
+        }
+        if (cur_x > screen_x) {
             cur_x = screen_x;
-        if (cur_y > screen_y)
+        }
+        if (cur_y > screen_y) {
             cur_y = screen_y;
+        }
         printf("\033[%d;%dH", cur_y, cur_x);
         fflush(stdout);
         rc = true;
@@ -810,45 +892,52 @@ cmd_t cmd_table[] = {
 
 static void help(void) {
     printf("\n");
-    for (int i = 0; cmd_table[i].name; i++)
+    for (int i = 0; cmd_table[i].name; i++) {
         printf("%7s - %s\n", cmd_table[i].name, cmd_table[i].descr);
+    }
 }
 
 static const char* search_cmds(int len) {
-    if (len == 0)
+    if (len == 0) {
         return NULL;
+    }
     int i, last_i, count = 0;
-    for (i = 0; cmd_table[i].name; i++)
+    for (i = 0; cmd_table[i].name; i++) {
         if (strncmp(cmd_buffer, cmd_table[i].name, len) == 0) {
             last_i = i;
             count++;
         }
-    if (count != 1)
+    }
+    if (count != 1) {
         return NULL;
+    }
     return cmd_table[last_i].name + len;
 }
 
 static void HardFault_Handler(void) {
     static const char* clear = "\n\n" VT_BOLD "*** " VT_BLINK "CRASH" VT_NORMAL VT_BOLD
                                " - Rebooting in 5 seconds ***" VT_NORMAL "\r\n\n";
-    for (const char* cp = clear; *cp; cp++)
+    for (const char* cp = clear; *cp; cp++) {
         putchar(*cp);
+    }
 #ifndef NDEBUG
     for (;;)
         ;
 #endif
     watchdog_reboot(0, 0, 5000);
-    for (;;)
+    for (;;) {
         __wfi();
+    }
 }
 
 static bool run_as_cmd(const char* dir) {
     char* tfn;
-    if (strlen(dir) == 0)
+    if (strlen(dir) == 0) {
         tfn = full_path(argv[0]);
-    else {
-        if (argv[0][0] == '/')
+    } else {
+        if (argv[0][0] == '/') {
             return false;
+        }
         tfn = argv[0];
     }
     char* fn = malloc(strlen(tfn) + 6);
@@ -875,8 +964,9 @@ int main(void) {
     stdio_init_all();
     bool uart = true;
 #if LIB_PICO_STDIO_USB
-    while (!stdio_usb_connected())
+    while (!stdio_usb_connected()) {
         sleep_ms(1000);
+    }
     uart = false;
 #endif
     ((int*)scb_hw->vtor)[3] = (int)HardFault_Handler;
@@ -902,8 +992,9 @@ int main(void) {
 #else
         strcpy(console, "UART");
 #endif
-    } else
+    } else {
         strcpy(console, "USB");
+    }
     printf("\nboard: " PICO_BOARD ", console: %s [%u X %u], filesystem: %s\n\n"
            "enter command or hit ENTER for help\n\n",
            console, screen_x, screen_y, buf);
@@ -922,11 +1013,13 @@ int main(void) {
                " would you like to format it (Y/n) ? ");
         fflush(stdout);
         char c = getchar();
-        while (c != 'y' && c != 'Y' && c != 'N' && c != 'n' && c != '\r')
+        while (c != 'y' && c != 'Y' && c != 'N' && c != 'n' && c != '\r') {
             c = getchar();
+        }
         putchar(c);
-        if (c != '\r')
+        if (c != '\r') {
             echo_key('\r');
+        }
         putchar('\n');
         if (c == 'y' || c == 'y') {
             if (fs_format() != LFS_ERR_OK) {
@@ -955,17 +1048,20 @@ int main(void) {
                 quit_cmd();
                 continue;
             }
-            for (int i = 0; cmd_table[i].name; i++)
+            for (int i = 0; cmd_table[i].name; i++) {
                 if (strcmp(argv[0], cmd_table[i].name) == 0) {
                     cmd_table[i].func();
-                    if (result[0])
+                    if (result[0]) {
                         printf("\n%s\n", result);
+                    }
                     found = true;
                     break;
                 }
+            }
             if (!found) {
-                if (!run_as_cmd("") && !run_as_cmd("/bin/"))
+                if (!run_as_cmd("") && !run_as_cmd("/bin/")) {
                     printf("\nunknown command '%s'. hit ENTER for help\n", argv[0]);
+                }
             }
         } else {
             help();

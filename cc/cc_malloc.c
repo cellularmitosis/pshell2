@@ -16,21 +16,24 @@ static int* malloc_list UDATA; // list of allocated memory blocks
 void* cc_malloc(int l, int die) {
     int* p = malloc(l + 4);
     if (!p) {
-        if (die)
+        if (die) {
             run_fatal("out of memory");
-        else
+        } else {
             return 0;
+        }
     }
-    if (die)
+    if (die) {
         memset(p + 1, 0, l);
+    }
     p[0] = (int)malloc_list;
     malloc_list = p;
     return p + 1;
 }
 
 void cc_free(void* p) {
-    if (!p)
+    if (!p) {
         run_fatal("freeing a NULL pointer");
+    }
     int* p2 = (int*)p - 1;
     int* last = (int*)&malloc_list;
     int* pi = (int*)(*last);
@@ -47,6 +50,7 @@ void cc_free(void* p) {
 }
 
 void cc_free_all(void) {
-    while (malloc_list)
+    while (malloc_list) {
         cc_free(malloc_list + 1);
+    }
 }

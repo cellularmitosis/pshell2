@@ -214,7 +214,7 @@ struct ident_s {
 };
 
 // symbol table
-static struct ident_s* id UDATA; // currently parsed identifier
+static struct ident_s* id UDATA;       // currently parsed identifier
 static struct ident_s* sym_base UDATA; // symbol table (simple list of identifiers)
 
 // struct member list entry
@@ -269,8 +269,9 @@ static __attribute__((__noreturn__)) void fatal_func(const char* func, int lne, 
     if (lineno > 0) {
         lp = src_base;
         int lno = lineno;
-        while (--lno)
+        while (--lno) {
             lp = strchr(lp, '\n') + 1;
+        }
         p = strchr(lp, '\n');
         printf("\n" VT_BOLD "%d:" VT_NORMAL " %.*s\n", lineno, p - lp, lp);
     }
@@ -299,21 +300,25 @@ static struct file_handle {
         lfs_file_t file; // LFS file control block
         lfs_dir_t dir;   // LFS directory control block
     } u;
-} * file_list UDATA; // file list root
+}* file_list UDATA; // file list root
 
 // user function shims
 static int wrap_open(char* name, int mode) {
     struct file_handle* h = cc_malloc(sizeof(struct file_handle), 1);
     h->is_dir = false;
     int lfs_mode = (mode & 0xf) + 1;
-    if (mode & O_CREAT)
+    if (mode & O_CREAT) {
         lfs_mode |= LFS_O_CREAT;
-    if (mode & O_EXCL)
+    }
+    if (mode & O_EXCL) {
         lfs_mode |= LFS_O_EXCL;
-    if (mode & O_TRUNC)
+    }
+    if (mode & O_TRUNC) {
         lfs_mode |= LFS_O_TRUNC;
-    if (mode & O_APPEND)
+    }
+    if (mode & O_APPEND) {
         lfs_mode |= LFS_O_APPEND;
+    }
     if (fs_file_open(&h->u.file, full_path(name), lfs_mode) < LFS_ERR_OK) {
         cc_free(h);
         return 0;
@@ -341,10 +346,11 @@ static void wrap_close(int handle) {
     while (h) {
         if (h == (struct file_handle*)handle) {
             last_h->next = h->next;
-            if (h->is_dir)
+            if (h->is_dir) {
                 fs_dir_close(&h->u.dir);
-            else
+            } else {
                 fs_file_close(&h->u.file);
+            }
             cc_free(h);
             return;
         }
@@ -356,15 +362,17 @@ static void wrap_close(int handle) {
 
 static int wrap_read(int handle, void* buf, int len) {
     struct file_handle* h = (struct file_handle*)handle;
-    if (h->is_dir)
+    if (h->is_dir) {
         fatal("use readdir to read from directories");
+    }
     return fs_file_read(&h->u.file, buf, len);
 }
 
 static int wrap_readdir(int handle, void* buf) {
     struct file_handle* h = (struct file_handle*)handle;
-    if (!h->is_dir)
+    if (!h->is_dir) {
         fatal("use read to read from files");
+    }
     return fs_dir_read(&h->u.dir, buf);
 }
 
@@ -380,8 +388,8 @@ static int wrap_lseek(int handle, int pos, int set) {
 
 static int wrap_popcount(int n) { return __builtin_popcount(n); };
 
-static int wrap_printf(void){};
-static int wrap_sprintf(void){};
+static int wrap_printf(void) {};
+static int wrap_sprintf(void) {};
 
 static int wrap_remove(char* name) { return fs_remove(full_path(name)); };
 
@@ -450,12 +458,13 @@ static int extern_search(char* name) // get cache index of external function
     int first = 0, last = numof(externs) - 1, middle;
     while (first <= last) {
         middle = (first + last) / 2;
-        if (strcmp(name, externs[middle].name) > 0)
+        if (strcmp(name, externs[middle].name) > 0) {
             first = middle + 1;
-        else if (strcmp(name, externs[middle].name) < 0)
+        } else if (strcmp(name, externs[middle].name) < 0) {
             last = middle - 1;
-        else
+        } else {
             return middle;
+        }
     }
     return -1;
 }
@@ -464,8 +473,9 @@ static int extern_search(char* name) // get cache index of external function
 
 static void push_ast(int l) {
     n -= l;
-    if (n < ast)
+    if (n < ast) {
         fatal("AST overflow compiler error. Program too big");
+    }
 }
 
 typedef struct {
@@ -756,16 +766,16 @@ static void next() {
         if ((tk >= 'a' && tk <= 'z') || (tk >= 'A' && tk <= 'Z') || (tk == '_')) {
             pp = p - 1;
             while ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
-                   (*p >= '0' && *p <= '9') || (*p == '_'))
+                   (*p >= '0' && *p <= '9') || (*p == '_')) {
                 tk = tk * 147 + *p++;
+            }
             tk = (tk << 6) + (p - pp); // hash plus symbol length
             // hash value is used for fast comparison. Since it is inaccurate,
             // we have to validate the memory content as well.
             id = sym_base;
             for (id = sym_base; id; id = id->next) { // find one free slot in table
                 if (tk == id->hash &&                // if token is found (hash match), overwrite
-                    !memcmp(id->name, pp, p - pp))
-                {
+                    !memcmp(id->name, pp, p - pp)) {
                     tk = id->tk;
                     return;
                 }
@@ -814,8 +824,9 @@ static void next() {
             break;
         case '/':
             if (*p == '/') { // comment
-                while (*p != 0 && *p != '\n')
+                while (*p != 0 && *p != '\n') {
                     ++p;
+                }
             } else if (*p == '*') { // C-style multiline comments
                 for (++p; (*p != 0); ++p) {
                     pp = p + 1;
@@ -826,14 +837,16 @@ static void next() {
                         break;
                     }
                 }
-                if (*p)
+                if (*p) {
                     ++p;
+                }
             } else {
                 if (*p == '=') {
                     ++p;
                     tk = DivAssign;
-                } else
+                } else {
                     tk = Div;
+                }
                 return;
             }
             break;
@@ -859,8 +872,9 @@ static void next() {
                         id->val = Num_entry(n).val;
                         n += Num_words;
                         break;
-                    } else
+                    } else {
                         fatal("define value must be a constant integer or float expression");
+                    }
                 } else {
                     id->class = Num;
                     id->type = INT;
@@ -869,36 +883,43 @@ static void next() {
             } else if ((t = !strncmp(p, "ifdef", 5)) || !strncmp(p, "ifndef", 6)) {
                 p += 6;
                 next();
-                if (tk != Id)
+                if (tk != Id) {
                     fatal("No identifier");
+                }
                 ++pplev;
                 if ((((id->class != Num && id->class != NumF) ? 0 : 1) ^ (t ? 1 : 0)) & 1) {
                     t = pplevt;
                     pplevt = pplev - 1;
-                    while (*p != 0 && *p != '\n')
+                    while (*p != 0 && *p != '\n') {
                         ++p; // discard until end-of-line
-                    do
+                    }
+                    do {
                         next();
-                    while (pplev != pplevt);
+                    } while (pplev != pplevt);
                     pplevt = t;
                 }
             } else if (!strncmp(p, "if", 2)) {
                 // ignore side effects of preprocessor if-statements
                 ++pplev;
             } else if (!strncmp(p, "endif", 5)) {
-                if (--pplev < 0)
+                if (--pplev < 0) {
                     fatal("preprocessor context nesting error");
-                if (pplev == pplevt)
+                }
+                if (pplev == pplevt) {
                     return;
+                }
             } else if (!strncmp(p, "pragma", 6)) {
                 p += 6;
-                while ((*p == ' ') || (*p == '\t'))
+                while ((*p == ' ') || (*p == '\t')) {
                     ++p;
-                if (!strncmp(p, "uchar", 5))
+                }
+                if (!strncmp(p, "uchar", 5)) {
                     uchar_opt = 1;
+                }
             }
-            while (*p != 0 && *p != '\n')
+            while (*p != 0 && *p != '\n') {
                 ++p; // discard until end-of-line
+            }
             break;
         case '\'': // quotes start with character (string)
         case '"':
@@ -935,12 +956,14 @@ static void next() {
                         t = tkv.i - '0';
                         t2 = 1;
                         while (*p >= '0' & *p <= '7') {
-                            if (++t2 > 3)
+                            if (++t2 > 3) {
                                 break;
+                            }
                             t = (t << 3) + *p++ - '0';
                         }
-                        if (t > 255)
+                        if (t > 255) {
                             fatal("bad octal character in string");
+                        }
                         tkv.i = t; // octal representation
                         break;
                     case 'x':
@@ -948,15 +971,17 @@ static void next() {
                         t = 0;
                         while ((*p >= '0' & *p <= '9') || (*p >= 'a' & *p <= 'f') ||
                                (*p >= 'A' & *p <= 'F')) {
-                            if (*p >= '0' & *p <= '9')
+                            if (*p >= '0' & *p <= '9') {
                                 t = (t << 4) + *p++ - '0';
-                            else if (*p >= 'A' & *p <= 'F')
+                            } else if (*p >= 'A' & *p <= 'F') {
                                 t = (t << 4) + *p++ - 'A' + 10;
-                            else
+                            } else {
                                 t = (t << 4) + *p++ - 'a' + 10;
+                            }
                         }
-                        if (t > 255)
+                        if (t > 255) {
                             fatal("bad hexadecimal character in string");
+                        }
                         tkv.i = t; // hexadecimal representation
                         break;     // an int with value 0
                     }
@@ -964,30 +989,34 @@ static void next() {
                 // if it is double quotes (string literal), it is considered as
                 // a string, copying characters to data
                 if (tk == '"') {
-                    if (data >= data_base + DATA_BYTES)
+                    if (data >= data_base + DATA_BYTES) {
                         fatal("program data exceeds data segment");
+                    }
                     *data++ = tkv.i;
                 }
             }
             ++p;
-            if (tk == '"')
+            if (tk == '"') {
                 tkv.i = (int)pp;
-            else
+            } else {
                 tk = Num;
+            }
             return;
         case '=':
             if (*p == '=') {
                 ++p;
                 tk = Eq;
-            } else
+            } else {
                 tk = Assign;
+            }
             return;
         case '*':
             if (*p == '=') {
                 ++p;
                 tk = MulAssign;
-            } else
+            } else {
                 tk = Mul;
+            }
             return;
         case '+':
             if (*p == '+') {
@@ -996,8 +1025,9 @@ static void next() {
             } else if (*p == '=') {
                 ++p;
                 tk = AddAssign;
-            } else
+            } else {
                 tk = Add;
+            }
             return;
         case '-':
             if (*p == '-') {
@@ -1009,8 +1039,9 @@ static void next() {
             } else if (*p == '=') {
                 ++p;
                 tk = SubAssign;
-            } else
+            } else {
                 tk = Sub;
+            }
             return;
         case '[':
             tk = Bracket;
@@ -1022,8 +1053,9 @@ static void next() {
             } else if (*p == '=') {
                 ++p;
                 tk = AndAssign;
-            } else
+            } else {
                 tk = And;
+            }
             return;
         case '!':
             if (*p == '=') {
@@ -1040,10 +1072,12 @@ static void next() {
                 if (*p == '=') {
                     ++p;
                     tk = ShlAssign;
-                } else
+                } else {
                     tk = Shl;
-            } else
+                }
+            } else {
                 tk = Lt;
+            }
             return;
         case '>':
             if (*p == '=') {
@@ -1054,10 +1088,12 @@ static void next() {
                 if (*p == '=') {
                     ++p;
                     tk = ShrAssign;
-                } else
+                } else {
                     tk = Shr;
-            } else
+                }
+            } else {
                 tk = Gt;
+            }
             return;
         case '|':
             if (*p == '|') {
@@ -1066,22 +1102,25 @@ static void next() {
             } else if (*p == '=') {
                 ++p;
                 tk = OrAssign;
-            } else
+            } else {
                 tk = Or;
+            }
             return;
         case '^':
             if (*p == '=') {
                 ++p;
                 tk = XorAssign;
-            } else
+            } else {
                 tk = Xor;
+            }
             return;
         case '%':
             if (*p == '=') {
                 ++p;
                 tk = ModAssign;
-            } else
+            } else {
                 tk = Mod;
+            }
             return;
         case '?':
             tk = Cond;
@@ -1097,20 +1136,26 @@ static void next() {
 // verify binary operations are legal
 static void typecheck(int op, int tl, int tr) {
     int pt = 0, it = 0, st = 0;
-    if (tl >= PTR)
+    if (tl >= PTR) {
         pt += 2; // is pointer?
-    if (tr >= PTR)
+    }
+    if (tr >= PTR) {
         pt += 1;
+    }
 
-    if (tl < FLOAT)
+    if (tl < FLOAT) {
         it += 2; // is int?
-    if (tr < FLOAT)
+    }
+    if (tr < FLOAT) {
         it += 1;
+    }
 
-    if (tl > ATOM_TYPE && tl < PTR)
+    if (tl > ATOM_TYPE && tl < PTR) {
         st += 2; // is struct/union?
-    if (tr > ATOM_TYPE && tr < PTR)
+    }
+    if (tr > ATOM_TYPE && tr < PTR) {
         st += 1;
+    }
 
     if ((tl ^ tr) & (PTR | PTR2)) { // operation on different pointer levels
         if (op == Add && pt != 3 && (it & ~pt))
@@ -1121,22 +1166,27 @@ static void typecheck(int op, int tl, int tr) {
             ; // ok
         else if (op >= Eq && op <= Le && ast_Tk(n) == Num && Num_entry(n).val == 0)
             ; // ok
-        else
+        else {
             fatal("bad pointer arithmetic or cast needed");
+        }
     } else if (pt == 3 && op != Assign && op != Sub &&
-               (op < Eq || op > Le)) // pointers to same type
+               (op < Eq || op > Le)) { // pointers to same type
         fatal("bad pointer arithmetic");
+    }
 
-    if (pt == 0 && op != Assign && (it == 1 || it == 2))
+    if (pt == 0 && op != Assign && (it == 1 || it == 2)) {
         fatal("cast operation needed");
+    }
 
-    if (pt == 0 && st != 0)
+    if (pt == 0 && st != 0) {
         fatal("illegal operation with dereferenced struct");
+    }
 }
 
 static void bitopcheck(int tl, int tr) {
-    if (tl >= FLOAT || tr >= FLOAT)
+    if (tl >= FLOAT || tr >= FLOAT) {
         fatal("bit operation on non-int types");
+    }
 }
 
 static bool is_power_of_2(int n) { return ((n - 1) & n) == 0; }
@@ -1190,11 +1240,13 @@ static void expr(int lev) {
         next();
         // function call
         if (tk == '(') {
-            if (d->class == Func && d->val == 0)
+            if (d->class == Func && d->val == 0) {
                 goto resolve_fnproto;
+            }
             if (d->class < Func || d->class > Syscall) {
-                if (d->class != 0)
+                if (d->class != 0) {
                     fatal("bad function call");
+                }
                 d->type = INT;
                 d->etype = 0;
             resolve_fnproto:
@@ -1219,10 +1271,11 @@ static void expr(int lev) {
                 int namelen = d->hash & 0x3f;
                 char ch = d->name[namelen];
                 d->name[namelen] = 0;
-                if (d->class == Func)
+                if (d->class == Func) {
                     disasm_symbol(&state, d->name, d->val, ARMMODE_THUMB);
-                else
+                } else {
                     disasm_symbol(&state, d->name, (int)externs[d->val].extrn | 1, ARMMODE_THUMB);
+                }
                 d->name[namelen] = ch;
             }
             next();
@@ -1246,19 +1299,23 @@ static void expr(int lev) {
                 }
                 if (tk == ',') {
                     next();
-                    if (tk == ')')
+                    if (tk == ')') {
                         fatal("unexpected comma in function call");
-                } else if (tk != ')')
+                    }
+                } else if (tk != ')') {
                     fatal("missing comma in function call");
+                }
             }
-            if (t > ADJ_MASK)
+            if (t > ADJ_MASK) {
                 fatal("maximum of %d function parameters", ADJ_MASK);
+            }
             tt = (tt << 10) + (nf << 5) + t; // func etype not like other etype
             if (d->etype != tt) {
-                if (d->class == Func)
+                if (d->class == Func) {
                     fatal("argument type mismatch");
-                else if (!externs[d->val].is_printf && !externs[d->val].is_sprintf)
+                } else if (!externs[d->val].is_printf && !externs[d->val].is_sprintf) {
                     fatal("argument type mismatch");
+                }
             }
             next();
             // function or system call id
@@ -1312,12 +1369,14 @@ static void expr(int lev) {
         next();
         // continuous `"` handles C-style multiline text such as `"abc" "def"`
         while (tk == '"') {
-            if (data >= data_base + DATA_BYTES)
+            if (data >= data_base + DATA_BYTES) {
                 fatal("program data exceeds data segment");
+            }
             next();
         }
-        if (data >= data_base + DATA_BYTES)
+        if (data >= data_base + DATA_BYTES) {
             fatal("program data exceeds data segment");
+        }
         data = (char*)(((int)data + sizeof(int)) & (-sizeof(int)));
         ty = CHAR + PTR;
         break;
@@ -1326,8 +1385,9 @@ static void expr(int lev) {
      */
     case Sizeof:
         next();
-        if (tk != '(')
+        if (tk != '(') {
             fatal("open parenthesis expected in sizeof");
+        }
         next();
         d = 0;
         if (tk == Num || tk == NumF) {
@@ -1349,8 +1409,9 @@ static void expr(int lev) {
             case Struct:
             case Union:
                 next();
-                if (tk != Id || id->type <= ATOM_TYPE || id->type >= PTR)
+                if (tk != Id || id->type <= ATOM_TYPE || id->type >= PTR) {
                     fatal("bad struct/union type");
+                }
                 ty = id->type;
                 next();
                 break;
@@ -1361,8 +1422,9 @@ static void expr(int lev) {
                 ty += PTR;
             }
         }
-        if (tk != ')')
+        if (tk != ')') {
             fatal("close parenthesis expected in sizeof");
+        }
         next();
         ast_Num((ty & 3) ? (((ty - PTR) >= PTR) ? sizeof(int) : tsize[(ty - PTR) >> 2])
                          : ((ty >= PTR) ? sizeof(int) : tsize[ty >> 2]));
@@ -1372,7 +1434,7 @@ static void expr(int lev) {
         //   3d etype -- bit 0:10,11:20,21:30 [1024,1024,2048]
         // bit 2:9 - type
         // bit 10:11 - ptr level
-        if ((d != 0) && (ty & 3))
+        if ((d != 0) && (ty & 3)) {
             switch (ty & 3) {
             case 1:
                 Num_entry(n).val *= (id->etype & 0x7fffffff) + 1;
@@ -1385,6 +1447,7 @@ static void expr(int lev) {
                                     (((id->etype >> 21) & 0x7ff) + 1);
                 break;
             }
+        }
         ty = INT;
         break;
     // Type cast or parenthesis
@@ -1400,8 +1463,9 @@ static void expr(int lev) {
                 break;
             default:
                 next();
-                if (tk != Id || id->type <= ATOM_TYPE || id->type >= PTR)
+                if (tk != Id || id->type <= ATOM_TYPE || id->type >= PTR) {
                     fatal("bad struct/union type");
+                }
                 t = id->type;
                 next();
                 break;
@@ -1411,8 +1475,9 @@ static void expr(int lev) {
                 next();
                 t += PTR;
             }
-            if (tk != ')')
+            if (tk != ')') {
                 fatal("bad cast");
+            }
             next();
             expr(Inc); // cast has precedence as Inc(++)
             if (t != ty && (t == FLOAT || ty == FLOAT)) {
@@ -1432,8 +1497,9 @@ static void expr(int lev) {
                         b = n;
                         ast_CastF(FTOI, (int)b);
                     }
-                } else
+                } else {
                     fatal("explicit cast required");
+                }
             }
             ty = t;
         } else {
@@ -1442,19 +1508,22 @@ static void expr(int lev) {
                 next();
                 b = n;
                 expr(Assign);
-                if (b != n)
+                if (b != n) {
                     ast_Begin(b);
+                }
             }
-            if (tk != ')')
+            if (tk != ')') {
                 fatal("close parenthesis expected");
+            }
             next();
         }
         break;
     case Mul: // "*", dereferencing the pointer operation
         next();
         expr(Inc); // dereference has the same precedence as Inc(++)
-        if (ty < PTR)
+        if (ty < PTR) {
             fatal("bad dereference");
+        }
         ty -= PTR;
         ast_Load(ty);
         break;
@@ -1464,19 +1533,21 @@ static void expr(int lev) {
          */
         next();
         expr(Inc);
-        if (ast_Tk(n) != Load)
+        if (ast_Tk(n) != Load) {
             fatal("bad address-of");
+        }
         n += Load_words;
         ty += PTR;
         break;
     case '!': // "!x" is equivalent to "x == 0"
         next();
         expr(Inc);
-        if (ty > ATOM_TYPE && ty < PTR)
+        if (ty > ATOM_TYPE && ty < PTR) {
             fatal("!(struct/union) is meaningless");
-        if (ast_Tk(n) == Num)
+        }
+        if (ast_Tk(n) == Num) {
             Num_entry(n).val = !Num_entry(n).val;
-        else {
+        } else {
             ast_Num(0);
             ast_Oper((int)(n + Num_words), Eq);
         }
@@ -1485,11 +1556,12 @@ static void expr(int lev) {
     case '~': // "~x" is equivalent to "x ^ -1"
         next();
         expr(Inc);
-        if (ty > ATOM_TYPE)
+        if (ty > ATOM_TYPE) {
             fatal("~ptr is illegal");
-        if (ast_Tk(n) == Num)
+        }
+        if (ast_Tk(n) == Num) {
             Num_entry(n).val = ~Num_entry(n).val;
-        else {
+        } else {
             ast_Num(-1);
             ast_Oper((int)(n + Num_words), Xor);
         }
@@ -1498,17 +1570,19 @@ static void expr(int lev) {
     case Add:
         next();
         expr(Inc);
-        if (ty > ATOM_TYPE)
+        if (ty > ATOM_TYPE) {
             fatal("unary '+' illegal on ptr");
+        }
         break;
     case Sub:
         next();
         expr(Inc);
-        if (ty > ATOM_TYPE)
+        if (ty > ATOM_TYPE) {
             fatal("unary '-' illegal on ptr");
-        if (ast_Tk(n) == Num)
+        }
+        if (ast_Tk(n) == Num) {
             Num_entry(n).val = -Num_entry(n).val;
-        else if (ast_Tk(n) == NumF) {
+        } else if (ast_Tk(n) == NumF) {
             Num_entry(n).val ^= 0x80000000;
         } else if (ty == FLOAT) {
             ast_NumF(0xbf800000);
@@ -1517,27 +1591,31 @@ static void expr(int lev) {
             ast_Num(-1);
             ast_Oper((int)(n + Num_words), Mul);
         }
-        if (ty != FLOAT)
+        if (ty != FLOAT) {
             ty = INT;
+        }
         break;
     case Inc:
     case Dec: // processing ++x and --x. x-- and x++ is handled later
         t = tk;
         next();
         expr(Inc);
-        if (ty == FLOAT)
+        if (ty == FLOAT) {
             fatal("no ++/-- on float");
-        if (ast_Tk(n) != Load)
+        }
+        if (ast_Tk(n) != Load) {
             fatal("bad lvalue in pre-increment");
+        }
         ast_Tk(n) = t;
         break;
     case 0:
         fatal("unexpected EOF in expression");
     default:
-        if (tk & COMPOUND)
+        if (tk & COMPOUND) {
             tk ^= COMPOUND;
-        else
+        } else {
             fatal("bad expression");
+        }
     }
 
     // "precedence climbing" or "Top Down Operator Precedence" method
@@ -1548,12 +1626,14 @@ static void expr(int lev) {
         b = n;
         switch (tk) {
         case Assign:
-            if (t & 3)
+            if (t & 3) {
                 fatal("Cannot assign to array type lvalue");
+            }
             // the left part is processed by the variable part of `tk=ID`
             // and pushes the address
-            if (ast_Tk(n) != Load)
+            if (ast_Tk(n) != Load) {
                 fatal("bad lvalue in assignment");
+            }
             // get the value of the right part `expr` as the result of `a=expr`
             n += Load_words;
             b = n;
@@ -1573,18 +1653,21 @@ static void expr(int lev) {
         case MulAssign:
         case DivAssign:
         case ModAssign:
-            if (t & 3)
+            if (t & 3) {
                 fatal("Cannot assign to array type lvalue");
-            if (ast_Tk(n) != Load)
+            }
+            if (ast_Tk(n) != Load) {
                 fatal("bad lvalue in assignment");
+            }
             n += Load_words;
             b = n;
             ast_End();
             ast_Load(t);
-            if (tk < ShlAssign)
+            if (tk < ShlAssign) {
                 tk = Or + (tk - OrAssign);
-            else
+            } else {
                 tk = Shl + (tk - ShlAssign);
+            }
             tk |= COMPOUND;
             ty = t;
             compound = 1;
@@ -1596,13 +1679,15 @@ static void expr(int lev) {
             next();
             expr(Assign);
             tc = ty;
-            if (tk != ':')
+            if (tk != ':') {
                 fatal("conditional missing colon");
+            }
             next();
             c = n;
             expr(Cond);
-            if (tc != ty)
+            if (tc != ty) {
                 fatal("both results need same type");
+            }
             ast_Cond((int)n, (int)c, (int)b);
             break;
         case Lor: // short circuit, the logical or
@@ -1611,8 +1696,9 @@ static void expr(int lev) {
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = Num_entry(b).val || Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Lor);
+            }
             ty = INT;
             break;
         case Lan: // short circuit, logic and
@@ -1621,8 +1707,9 @@ static void expr(int lev) {
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = Num_entry(b).val && Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Lan);
+            }
             ty = INT;
             break;
         case Or: // push the current value, calculate the right value
@@ -1630,14 +1717,16 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Xor);
+            }
             bitopcheck(t, ty);
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = Num_entry(b).val | Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Or);
+            }
             ty = INT;
             break;
         case Xor:
@@ -1645,14 +1734,16 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(And);
+            }
             bitopcheck(t, ty);
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = Num_entry(b).val ^ Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Xor);
+            }
             ty = INT;
             break;
         case And:
@@ -1660,14 +1751,16 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Eq);
+            }
             bitopcheck(t, ty);
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = Num_entry(b).val & Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, And);
+            }
             ty = INT;
             break;
         case Eq:
@@ -1679,14 +1772,16 @@ static void expr(int lev) {
                     Num_entry(b).val = Num_entry(n).val == Num_entry(b).val;
                     ast_Tk(b) = Num;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, EqF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val = Num_entry(b).val == Num_entry(n).val;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, Eq);
+                }
             }
             ty = INT;
             break;
@@ -1699,8 +1794,9 @@ static void expr(int lev) {
                     Num_entry(b).val = Num_entry(n).val != Num_entry(b).val;
                     ast_Tk(b) = Num;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, NeF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val = Num_entry(b).val != Num_entry(n).val;
@@ -1728,8 +1824,9 @@ static void expr(int lev) {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val = Num_entry(b).val >= Num_entry(n).val;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, Ge);
+                }
             }
             ty = INT;
             break;
@@ -1743,14 +1840,16 @@ static void expr(int lev) {
                         (*((float*)&Num_entry(b).val) < *((float*)&Num_entry(n).val));
                     ast_Tk(b) = Num;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, LtF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val = Num_entry(b).val < Num_entry(n).val;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, Lt);
+                }
             }
             ty = INT;
             break;
@@ -1764,14 +1863,16 @@ static void expr(int lev) {
                         (*((float*)&Num_entry(b).val) > *((float*)&Num_entry(n).val));
                     ast_Tk(b) = Num;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, GtF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val = Num_entry(b).val > Num_entry(n).val;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, Gt);
+                }
             }
             ty = INT;
             break;
@@ -1785,14 +1886,16 @@ static void expr(int lev) {
                         (*((float*)&Num_entry(b).val) <= *((float*)&Num_entry(n).val));
                     ast_Tk(b) = Num;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, LeF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val = Num_entry(b).val <= Num_entry(n).val;
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, Le);
+                }
             }
             ty = INT;
             break;
@@ -1801,15 +1904,17 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Add);
+            }
             bitopcheck(t, ty);
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = (Num_entry(n).val < 0) ? Num_entry(b).val >> -Num_entry(n).val
                                                           : Num_entry(b).val << Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Shl);
+            }
             ty = INT;
             break;
         case Shr:
@@ -1817,15 +1922,17 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Add);
+            }
             bitopcheck(t, ty);
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val = (Num_entry(n).val < 0) ? Num_entry(b).val << -Num_entry(n).val
                                                           : Num_entry(b).val >> Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Shr);
+            }
             ty = INT;
             break;
         case Add:
@@ -1833,21 +1940,24 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Mul);
+            }
             typecheck(Add, t, ty);
             if (ty == FLOAT) {
                 if (ast_Tk(n) == NumF && ast_Tk(b) == NumF) {
                     *((float*)&Num_entry(b).val) =
                         (*((float*)&Num_entry(b).val) + *((float*)&Num_entry(n).val));
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, AddF);
+                }
             } else { // both terms are either int or "int *"
                 tc = ((t | ty) & (PTR | PTR2)) ? (t >= PTR) : (t >= ty);
                 c = n;
-                if (tc)
+                if (tc) {
                     ty = t;
+                }
                 sz = (ty >= PTR2) ? sizeof(int) : ((ty >= PTR) ? tsize[(ty - PTR) >> 2] : 1);
                 if (ast_Tk(n) == Num && tc) {
                     Num_entry(n).val *= sz;
@@ -1863,8 +1973,9 @@ static void expr(int lev) {
                     ast_Num(sz);
                     ast_Oper((int)(tc ? c : b), Mul);
                     ast_Oper((int)(tc ? b : c), Add);
-                } else
+                } else {
                     ast_Oper((int)b, Add);
+                }
             }
             break;
         case Sub:
@@ -1872,16 +1983,18 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Mul);
+            }
             typecheck(Sub, t, ty);
             if (ty == FLOAT) {
                 if (ast_Tk(n) == NumF && ast_Tk(b) == NumF) {
                     *((float*)&Num_entry(b).val) =
                         (*((float*)&Num_entry(b).val) - *((float*)&Num_entry(n).val));
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, SubF);
+                }
             } else {            // 4 cases: ptr-ptr, ptr-int, int-ptr (err), int-int
                 if (t >= PTR) { // left arg is ptr
                     sz = (t >= PTR2) ? sizeof(int) : tsize[(t - PTR) >> 2];
@@ -1929,8 +2042,9 @@ static void expr(int lev) {
                     if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                         Num_entry(b).val = Num_entry(b).val - Num_entry(n).val;
                         n = b;
-                    } else
+                    } else {
                         ast_Oper((int)b, Sub);
+                    }
                     ty = INT;
                 }
             }
@@ -1940,15 +2054,17 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Inc);
+            }
             typecheck(Mul, t, ty);
             if (ty == FLOAT) {
                 if (ast_Tk(n) == NumF && ast_Tk(b) == NumF) {
                     *((float*)&Num_entry(b).val) *= *((float*)&Num_entry(n).val);
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, MulF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val *= Num_entry(n).val;
@@ -1958,21 +2074,25 @@ static void expr(int lev) {
                         is_power_of_2(Num_entry(n).val)) {
                         Num_entry(n).val = __builtin_popcount(Num_entry(n).val - 1);
                         ast_Oper((int)b, Shl); // 2^n
-                    } else
+                    } else {
                         ast_Oper((int)b, Mul);
+                    }
                 }
                 ty = INT;
             }
             break;
         case Inc:
         case Dec:
-            if (ty & 3)
+            if (ty & 3) {
                 fatal("can't inc/dec an array variable");
-            if (ty == FLOAT)
+            }
+            if (ty == FLOAT) {
                 fatal("no ++/-- on float");
+            }
             sz = (ty >= PTR2) ? sizeof(int) : ((ty >= PTR) ? tsize[(ty - PTR) >> 2] : 1);
-            if (ast_Tk(n) != Load)
+            if (ast_Tk(n) != Load) {
                 fatal("bad lvalue in post-increment");
+            }
             ast_Tk(n) = tk;
             ast_Num(sz);
             ast_Oper((int)b, (tk == Inc) ? Sub : Add);
@@ -1983,16 +2103,18 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Inc);
+            }
             typecheck(Div, t, ty);
             if (ty == FLOAT) {
                 if (ast_Tk(n) == NumF && ast_Tk(b) == NumF) {
                     *((float*)&Num_entry(b).val) =
                         (*((float*)&Num_entry(b).val) / *((float*)&Num_entry(n).val));
                     n = b;
-                } else
+                } else {
                     ast_Oper((int)b, DivF);
+                }
             } else {
                 if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                     Num_entry(b).val /= Num_entry(n).val;
@@ -2002,8 +2124,9 @@ static void expr(int lev) {
                         is_power_of_2(Num_entry(n).val)) {
                         Num_entry(n).val = __builtin_popcount(Num_entry(n).val - 1);
                         ast_Oper((int)b, Shr); // 2^n
-                    } else
+                    } else {
                         ast_Oper((int)b, Div);
+                    }
                 }
                 ty = INT;
             }
@@ -2013,11 +2136,13 @@ static void expr(int lev) {
             if (compound) {
                 compound = 0;
                 expr(Assign);
-            } else
+            } else {
                 expr(Inc);
+            }
             typecheck(Mod, t, ty);
-            if (ty == FLOAT)
+            if (ty == FLOAT) {
                 fatal("use fmodf() for float modulo");
+            }
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val %= Num_entry(n).val;
                 n = b;
@@ -2025,26 +2150,32 @@ static void expr(int lev) {
                 if (ast_Tk(n) == Num && Num_entry(n).val > 0 && is_power_of_2(Num_entry(n).val)) {
                     --Num_entry(n).val;
                     ast_Oper((int)b, And); // 2^n
-                } else
+                } else {
                     ast_Oper((int)b, Mod);
+                }
             }
             ty = INT;
             break;
         case Dot:
             t += PTR;
-            if (ast_Tk(n) == Load && Load_entry(n).typ > ATOM_TYPE && Load_entry(n).typ < PTR)
+            if (ast_Tk(n) == Load && Load_entry(n).typ > ATOM_TYPE && Load_entry(n).typ < PTR) {
                 n += Load_words; // struct
+            }
         case Arrow:
-            if (t <= PTR + ATOM_TYPE || t >= PTR2)
+            if (t <= PTR + ATOM_TYPE || t >= PTR2) {
                 fatal("structure expected");
+            }
             next();
-            if (tk != Id)
+            if (tk != Id) {
                 fatal("structure member expected");
+            }
             m = members[(t - PTR) >> 2];
-            while (m && m->id != id)
+            while (m && m->id != id) {
                 m = m->next;
-            if (!m)
+            }
+            if (!m) {
                 fatal("structure member not found");
+            }
             if (m->offset) {
                 ast_Num(m->offset);
                 ast_Oper((int)(n + Num_words), Add);
@@ -2061,8 +2192,9 @@ static void expr(int lev) {
             b = n;
             t = ty & ~3;
         case Bracket:
-            if (t < PTR)
+            if (t < PTR) {
                 fatal("pointer type expected");
+            }
             if (memsub == 0) {
                 dim = id->type & 3;
                 ee = id->etype;
@@ -2079,10 +2211,12 @@ static void expr(int lev) {
                 }
                 next();
                 expr(Assign);
-                if (ty >= FLOAT)
+                if (ty >= FLOAT) {
                     fatal("non-int array index");
-                if (tk != ']')
+                }
+                if (tk != ']') {
                     fatal("close bracket expected");
+                }
                 c = n;
                 next();
                 if (dim) {
@@ -2092,10 +2226,11 @@ static void expr(int lev) {
                                                : ((dim == 2 && ii == 1) ? ((ee & 0xffff) + 1) : 1));
                     if (ast_Tk(n) == Num) {
                         // elision with struct offset for efficiency
-                        if (ast_Tk(b) == Add && ast_Tk(b + Oper_words) == Num)
+                        if (ast_Tk(b) == Add && ast_Tk(b + Oper_words) == Num) {
                             Num_entry(b + Oper_words).val += factor * Num_entry(n).val * sz;
-                        else
+                        } else {
                             sum += factor * Num_entry(n).val;
+                        }
                         n += Num_words; // delete the subscript constant
                     } else {
                         // generate code to add a term
@@ -2103,8 +2238,9 @@ static void expr(int lev) {
                             ast_Num(factor);
                             ast_Oper((int)c, Mul);
                         }
-                        if (f)
+                        if (f) {
                             ast_Oper((int)f, Add);
+                        }
                         f = n;
                     }
                 }
@@ -2119,13 +2255,14 @@ static void expr(int lev) {
                         sz = 1;
                         ast_Num(sum);
                     }
-                } else if (!f)
+                } else if (!f) {
                     goto add_simple;
+                }
             }
             if (sz > 1) {
-                if (ast_Tk(n) == Num)
+                if (ast_Tk(n) == Num) {
                     Num_entry(n).val *= sz;
-                else {
+                } else {
                     ast_Num(sz);
                     ast_Oper((int)(n + Num_words), Mul);
                 }
@@ -2133,11 +2270,13 @@ static void expr(int lev) {
             if (ast_Tk(n) == Num && ast_Tk(b) == Num) {
                 Num_entry(b).val += Num_entry(n).val;
                 n = b;
-            } else
+            } else {
                 ast_Oper((int)b, Add);
+            }
         add_simple:
-            if (doload)
+            if (doload) {
                 ast_Load(((ty = t) >= PTR) ? INT : ty);
+            }
             break;
         default:
             fatal("%d: compiler error tk=%d\n", lineno, tk);
@@ -2151,13 +2290,15 @@ static void init_array(struct ident_s* tn, int extent[], int dim) {
     int inc[3];
 
     inc[0] = extent[dim - 1];
-    for (i = 1; i < dim; ++i)
+    for (i = 1; i < dim; ++i) {
         inc[i] = inc[i - 1] * extent[dim - (i + 1)];
+    }
 
     // Global is preferred to local.
     // Either suggest global or automatically move to global scope.
-    if (tn->class != Glo)
+    if (tn->class != Glo) {
         fatal("only global array initialization supported");
+    }
 
     switch (tn->type & ~3) {
     case (CHAR | PTR2):
@@ -2183,23 +2324,27 @@ static void init_array(struct ident_s* tn, int extent[], int dim) {
     do {
         if (tk == '{') {
             next();
-            if (cursor)
+            if (cursor) {
                 --cursor;
-            else
+            } else {
                 fatal("overly nested initializer");
+            }
             empty = 1;
             continue;
         } else if (tk == '}') {
             next();
             // skip remainder elements on this level (or set 0 if cmdline opt)
-            if ((off = i % inc[cursor + coff]) || empty)
+            if ((off = i % inc[cursor + coff]) || empty) {
                 i += (inc[cursor + coff] - off);
-            if (++cursor == dim - coff)
+            }
+            if (++cursor == dim - coff) {
                 break;
+            }
         } else {
             expr(Cond);
-            if (ast_Tk(n) != Num && ast_Tk(n) != NumF)
+            if (ast_Tk(n) != Num && ast_Tk(n) != NumF) {
                 fatal("non-literal initializer");
+            }
 
             if (ty == CHAR + PTR) {
                 if (match == CHAR + PTR2) {
@@ -2213,11 +2358,12 @@ static void init_array(struct ident_s* tn, int extent[], int dim) {
                     }
                     memcpy((char*)vi + i, (char*)Num_entry(n).val, off);
                     i += inc[0];
-                } else
+                } else {
                     fatal("can't assign string to scalar");
-            } else if (ty == match)
+                }
+            } else if (ty == match) {
                 vi[i++] = Num_entry(n).val;
-            else if (ty == INT) {
+            } else if (ty == INT) {
                 if (match == CHAR + PTR) {
                     *((char*)vi + i) = Num_entry(n).val;
                     i += inc[0];
@@ -2228,14 +2374,16 @@ static void init_array(struct ident_s* tn, int extent[], int dim) {
             } else if (ty == FLOAT) {
                 if (match == INT) {
                     vi[i++] = (int)*((float*)(&Num_entry(n).val));
-                } else
+                } else {
                     fatal("illegal char/string initializer");
+                }
             }
             n += Num_words; // clean up AST
             empty = 0;
         }
-        if (tk == ',')
+        if (tk == ',') {
             next();
+        }
     } while (1);
 }
 
@@ -2378,20 +2526,24 @@ static int peep_hole(const struct segs* s) {
     uint16_t rslt[8];
     int l = s->n_pats;
     uint16_t* pe = (e - l) + 1;
-    if (pe < text_base)
+    if (pe < text_base) {
         return 0;
+    }
     for (int i = 0; i < l; i++) {
         rslt[i] = pe[i] & ~s->msk[i];
-        if ((pe[i] & s->msk[i]) != s->pat[i])
+        if ((pe[i] & s->msk[i]) != s->pat[i]) {
             return 0;
+        }
     }
     e -= l;
     l = s->n_reps;
-    for (int i = 0; i < l; i++)
+    for (int i = 0; i < l; i++) {
         pe[i] = s->rep[i];
+    }
     for (int i = 0; i < 2; ++i) {
-        if (s->map[i].from < 0)
+        if (s->map[i].from < 0) {
             break;
+        }
         pe[s->map[i].to] |= rslt[s->map[i].from] << s->map[i].lshft;
     }
     e += l;
@@ -2400,30 +2552,36 @@ static int peep_hole(const struct segs* s) {
 
 static void peep(void) {
 restart:
-    for (int i = 0; i < numof(segments); ++i)
-        if (peep_hole(&segments[i]))
+    for (int i = 0; i < numof(segments); ++i) {
+        if (peep_hole(&segments[i])) {
             goto restart;
+        }
+    }
 }
 
 // ARM CM0+ code emitters
 
 static void emit(uint16_t n) {
-    if (e >= text_base + (TEXT_BYTES / sizeof(*e)) - 1)
+    if (e >= text_base + (TEXT_BYTES / sizeof(*e)) - 1) {
         fatal("code segment exceeded, program is too big");
+    }
     *++e = n;
-    if (!nopeep_opt)
+    if (!nopeep_opt) {
         peep();
+    }
 }
 
 static void emit_branch(uint16_t* to);
 static void emit_cond_branch(uint16_t* to, int cond);
 
 static void emit_word(uint32_t n) {
-    if (((int)e & 2) == 0)
+    if (((int)e & 2) == 0) {
         fatal("mis-aligned word");
+    }
     ++e;
-    if (e >= text_base + (TEXT_BYTES / sizeof(*e)) - 2)
+    if (e >= text_base + (TEXT_BYTES / sizeof(*e)) - 2) {
         fatal("code segment exceeded, program is too big");
+    }
     *((uint32_t*)e) = n;
     ++e;
 }
@@ -2432,23 +2590,26 @@ static void emit_load_long_imm(int r, int val, int ext) {
     emit(0x4800 | (r << 8)); // ldr rr,[pc + offset n]
     struct patch_s* p = pcrel;
     while (p) {
-        if (p->val == val)
+        if (p->val == val) {
             break;
+        }
         p = p->next;
     }
     if (!p) {
         ++pcrel_count;
-        if (pcrel_1st == 0)
+        if (pcrel_1st == 0) {
             pcrel_1st = e;
+        }
         p = cc_malloc(sizeof(struct patch_s), 1);
         p->val = val;
         p->ext = ext;
-        if (pcrel == 0)
+        if (pcrel == 0) {
             pcrel = p;
-        else {
+        } else {
             struct patch_s* p2 = pcrel;
-            while (p2->next)
+            while (p2->next) {
                 p2 = p2->next;
+            }
             p2->next = p;
         }
     }
@@ -2475,26 +2636,31 @@ static void patch_pc_relative(int brnch) {
     int rel_count = pcrel_count;
     pcrel_count = 0;
     if (brnch) {
-        if ((int)e & 2)
+        if ((int)e & 2) {
             emit(0x46c0); // nop ; (mov r8, r8)
+        }
         emit_branch(e + 2 * rel_count);
     } else {
-        if (!((int)e & 2))
+        if (!((int)e & 2)) {
             emit(0x46c0); // nop ; (mov r8, r8)
+        }
     }
     while (pcrel) {
         struct patch_s* p = pcrel;
         while (p->locs) {
             struct patch_s* pl = p->locs;
-            if ((*pl->addr & 0x4800) != 0x4800)
+            if ((*pl->addr & 0x4800) != 0x4800) {
                 fatal("unexpected compiler error");
+            }
             int te = (int)e + 2;
             int ta = (int)pl->addr + 2;
-            if (ta & 2)
+            if (ta & 2) {
                 ++ta;
+            }
             int ofs = (te - ta) / 4;
-            if (ofs > 255)
+            if (ofs > 255) {
                 fatal("unexpected compiler error");
+            }
             *pl->addr |= ofs;
             p->locs = pl->next;
             cc_free(pl);
@@ -2514,21 +2680,23 @@ static void patch_pc_relative(int brnch) {
 }
 
 static void check_pc_relative(void) {
-    if (pcrel_1st == 0)
+    if (pcrel_1st == 0) {
         return;
+    }
     int te = (int)e + 4 * pcrel_count;
     int ta = (int)pcrel_1st;
-    if ((te - ta) > 1000)
+    if ((te - ta) > 1000) {
         patch_pc_relative(1);
+    }
 }
 
 static void emit_enter(int n) {
     emit(0xb580);             // push {r7,lr}
     emit(0x466f);             // mov  r7, sp
     if (n) {                  //
-        if (n < 128)          //
+        if (n < 128) {        //
             emit(0xb080 | n); // sub  sp, #n
-        else {                //
+        } else {              //
             emit_load_immediate(3, -n * 4);
             emit(0x449d); // add sp, r3
         }
@@ -2541,7 +2709,7 @@ static void emit_leave(void) {
 }
 
 static void emit_load_addr(int n) {
-    emit_load_immediate(0, (n)*4);
+    emit_load_immediate(0, (n) * 4);
     emit(0x4438); // add r0,r7
 }
 
@@ -2572,8 +2740,9 @@ static void emit_load(int n) {
     switch (n) {
     case LC:
         emit(0x7800); // ldrb r0,[r0,#0]
-        if (!uchar_opt)
+        if (!uchar_opt) {
             emit(0xb240); // sxtb r0,r0
+        }
         break;
     case LI:
     case LF:
@@ -2588,17 +2757,19 @@ static uint16_t* emit_call(int n);
 
 static void emit_branch(uint16_t* to) {
     int ofs = to - (e + 1);
-    if (ofs >= -1024 && ofs < 1024)
+    if (ofs >= -1024 && ofs < 1024) {
         emit(0xe000 | (ofs & 0x7ff)); // JMP n
-    else
+    } else {
         emit_call((int)(to + 2));
+    }
 }
 
 static void emit_fop(int n) {
-    if (!ofn)
+    if (!ofn) {
         emit_load_long_imm(3, (int)fops[n], 0);
-    else
+    } else {
         emit_load_long_imm(3, -n, 1);
+    }
     emit(0x4798); // blx r3
 }
 
@@ -2734,8 +2905,9 @@ static void emit_oper(int op) {
         emit(0x4601); // mov r1,r0
         emit_pop(0);  // pop {r0}
         emit_fop(aeabi_idiv);
-        if (op == MOD)
+        if (op == MOD) {
             emit(0x4608); // mov r0,r1
+        }
         break;
     default:
         fatal("unexpected compiler error");
@@ -2806,8 +2978,9 @@ static void emit_cast(int n) {
 }
 
 static void emit_adjust_stack(int n) {
-    if (n)
+    if (n) {
         emit(0xb000 | n); // add sp, #n*4
+    }
 }
 
 static uint16_t* emit_call(int n) {
@@ -2817,8 +2990,9 @@ static uint16_t* emit_call(int n) {
         return e - 1;
     }
     int ofs = (n - ((int)e + 6)) / 2;
-    if (ofs < -8388608 || ofs > 8388607)
+    if (ofs < -8388608 || ofs > 8388607) {
         fatal("subroutine call too far");
+    }
     int s = (ofs >> 31) & 1;
     int i1 = ((ofs >> 22) & 1) ^ 1;
     int i2 = ((ofs >> 21) & 1) ^ 1;
@@ -2835,41 +3009,48 @@ static void emit_syscall(int n, int np) {
     const struct externs_s* p = externs + n;
     if (p->is_printf) {
         emit_load_immediate(0, np);
-        if (!ofn)
+        if (!ofn) {
             emit_load_long_imm(3, (int)x_printf, 0);
-        else
+        } else {
             emit_load_long_imm(3, n, 1);
+        }
     } else if (p->is_sprintf) {
         emit_load_immediate(0, np);
-        if (!ofn)
+        if (!ofn) {
             emit_load_long_imm(3, (int)x_sprintf, 0);
-        else
+        } else {
             emit_load_long_imm(3, n, 1);
+        }
     } else {
         int nparm = np & ADJ_MASK;
-        if (nparm > 4)
+        if (nparm > 4) {
             nparm = 4;
-        while (nparm--)
+        }
+        while (nparm--) {
             emit_pop(nparm);
-        if (!ofn)
+        }
+        if (!ofn) {
             emit_load_long_imm(3, (int)p->extrn, 1);
-        else
+        } else {
             emit_load_long_imm(3, n, 1);
+        }
     }
     emit(0x4798); // blx r3
     int nparm = np & ADJ_MASK;
-    if (p->is_printf || p->is_sprintf)
+    if (p->is_printf || p->is_sprintf) {
         emit_adjust_stack(nparm);
-    else {
+    } else {
         nparm = (nparm > 4) ? nparm - 4 : 0;
-        if (nparm)
+        if (nparm) {
             emit_adjust_stack(nparm);
+        }
     }
 }
 
 static void patch_branch(uint16_t* from, uint16_t* to) {
-    if (*from != 0 || *(from + 1) != 0)
+    if (*from != 0 || *(from + 1) != 0) {
         fatal("unexpected compiler error");
+    }
     uint16_t* se = e;
     e = from - 1;
     emit_call((int)to);
@@ -2892,9 +3073,10 @@ static void gen(int* n) {
         emit_load_immediate(0, Num_entry(n).val);
         break; // int or float value
     case Load:
-        gen(n + Load_words);                                        // load the value
-        if (Num_entry(n).val > ATOM_TYPE && Num_entry(n).val < PTR) // unreachable?
+        gen(n + Load_words);                                          // load the value
+        if (Num_entry(n).val > ATOM_TYPE && Num_entry(n).val < PTR) { // unreachable?
             fatal("struct copies not yet supported");
+        }
         emit_load((Num_entry(n).val >= PTR) ? LI : LC + (Num_entry(n).val >> 2));
         break;
     case Loc:
@@ -2911,12 +3093,14 @@ static void gen(int* n) {
         l = Num_entry(n).val & 0xffff;
         // Add SC/SI instruction to save value in register to variable address
         // held on stack.
-        if (l > ATOM_TYPE && l < PTR)
+        if (l > ATOM_TYPE && l < PTR) {
             fatal("struct assign not yet supported");
-        if ((Num_entry(n).val >> 16) == FLOAT && l == INT)
+        }
+        if ((Num_entry(n).val >> 16) == FLOAT && l == INT) {
             emit_fop((int)aeabi_f2iz);
-        else if ((Num_entry(n).val >> 16) == INT && l == FLOAT)
+        } else if ((Num_entry(n).val >> 16) == INT && l == FLOAT) {
             emit_fop((int)aeabi_i2f);
+        }
         emit_store((l >= PTR) ? SI : SC + (l >> 2));
         break;
     case Inc: // increment or decrement variables
@@ -3166,25 +3350,27 @@ static void gen(int* n) {
             }
             cc_free(t);
         }
-        if (i == Syscall)
+        if (i == Syscall) {
             emit_syscall(Func_entry(n).addr, Func_entry(n).parm_types);
-        else if (i == Func) {
+        } else if (i == Func) {
             emit_call(Func_entry(n).addr);
             emit_adjust_stack(Func_entry(n).n_parms);
         }
         break;
     case While:
     case DoWhile:
-        if (i == While)
+        if (i == While) {
             a = emit_call(0);
+        }
         b = (uint16_t*)brks;
         brks = 0;
         c = (uint16_t*)cnts;
         cnts = 0;
         d = e;
         gen((int*)While_entry(n).body); // loop body
-        if (i == While)
+        if (i == While) {
             patch_branch(a, e + 1);
+        }
         while (cnts) {
             t = (uint16_t*)cnts->next;
             patch_branch(cnts->addr, e + 1);
@@ -3226,8 +3412,9 @@ static void gen(int* n) {
             gen((int*)For_entry(n).cond); // condition
             emit(0x2800);                 // cmp r0,#0
             emit_cond_branch(a, BNZ);
-        } else
+        } else {
             emit_branch(a);
+        }
         while (brks) {
             t = (uint16_t*)brks->next;
             patch_branch(brks->addr, e + 1);
@@ -3268,11 +3455,13 @@ static void gen(int* n) {
         emit(0x4298); // cmp r0, r3
         emit_cond_branch(e + 2, BZ);
         ecas = emit_call(0);
-        if (*((int*)Case_entry(n).expr) == Switch)
+        if (*((int*)Case_entry(n).expr) == Switch) {
             a = ecas;
+        }
         gen((int*)Case_entry(n).expr); // expression
-        if (a != 0)
+        if (a != 0) {
             ecas = a;
+        }
         break;
     case Break:
         patch = cc_malloc(sizeof(struct patch_s), 1);
@@ -3293,16 +3482,18 @@ static void gen(int* n) {
             l->addr = emit_call(0);
             l->next = (struct patch_s*)label->forward;
             label->forward = (uint16_t*)l;
-        } else
+        } else {
             emit_branch((uint16_t*)label->val - 1);
+        }
         break;
     case Default:
         def = e;
         gen((int*)Num_entry(n).val);
         break;
     case Return:
-        if (Num_entry(n).val)
+        if (Num_entry(n).val) {
             gen((int*)Num_entry(n).val);
+        }
         emit_leave();
         break;
     case Enter:
@@ -3313,8 +3504,9 @@ static void gen(int* n) {
         break;
     case Label: // target of goto
         label = (struct ident_s*)Num_entry(n).val;
-        if (label->class != 0)
+        if (label->class != 0) {
             fatal("duplicate label definition");
+        }
         d = e;
         while (label->forward) {
             struct patch_s* l = (struct patch_s*)label->forward;
@@ -3326,20 +3518,24 @@ static void gen(int* n) {
         label->class = Label;
         break;
     default:
-        if (i != ';')
+        if (i != ';') {
             fatal("%d: compiler error gen=%08x\n", lineno, i);
+        }
     }
 }
 
 static void check_label(int** tt) {
-    if (tk != Id)
+    if (tk != Id) {
         return;
+    }
     char* ss = p;
-    while (*ss == ' ' || *ss == '\t')
+    while (*ss == ' ' || *ss == '\t') {
         ++ss;
+    }
     if (*ss == ':') {
-        if (id->class != 0 || !(id->type == 0 || id->type == -1))
+        if (id->class != 0 || !(id->type == 0 || id->type == -1)) {
             fatal("invalid label");
+        }
         id->type = -1; // hack for id->class deficiency
         ast_Label((int)id);
         ast_Begin(*tt);
@@ -3358,12 +3554,15 @@ static void loc_array_decl(int ct, int extent[3], int* dims, int* et, int* size)
             next();
         } else {
             expr(Cond);
-            if (ast_Tk(n) != Num)
+            if (ast_Tk(n) != Num) {
                 fatal("non-const array size");
-            if (Num_entry(n).val <= 0)
+            }
+            if (Num_entry(n).val <= 0) {
                 fatal("non-positive array dimension");
-            if (tk != ']')
+            }
+            if (tk != ']') {
                 fatal("missing ]");
+            }
             next();
             extent[*dims] = Num_entry(n).val;
             *size *= Num_entry(n).val;
@@ -3371,21 +3570,24 @@ static void loc_array_decl(int ct, int extent[3], int* dims, int* et, int* size)
         }
         ++*dims;
     } while (tk == Bracket && *dims < 3);
-    if (tk == Bracket)
+    if (tk == Bracket) {
         fatal("three subscript max on decl");
+    }
     switch (*dims) {
     case 1:
         *et = (extent[0] - 1);
         break;
     case 2:
         *et = ((extent[0] - 1) << 16) + (extent[1] - 1);
-        if (extent[0] > 32768 || extent[1] > 65536)
+        if (extent[0] > 32768 || extent[1] > 65536) {
             fatal("max bounds [32768][65536]");
+        }
         break;
     case 3:
         *et = ((extent[0] - 1) << 21) + ((extent[1] - 1) << 11) + (extent[2] - 1);
-        if (extent[0] > 1024 || extent[1] > 1024 || extent[2] > 2048)
+        if (extent[0] > 1024 || extent[1] > 1024 || extent[2] > 2048) {
             fatal("max bounds [1024][1024][2048]");
+        }
         break;
     }
 }
@@ -3398,44 +3600,50 @@ static void stmt(int ctx) {
     int nd[3];
     int bt;
 
-    if (ctx == Glo && (tk < Enum || tk > Union))
+    if (ctx == Glo && (tk < Enum || tk > Union)) {
         fatal("syntax: statement used outside function");
+    }
 
     switch (tk) {
     case Enum:
         next();
         // If current token is not "{", it means having enum type name.
         // Skip the enum type name.
-        if (tk == Id)
+        if (tk == Id) {
             next();
+        }
         if (tk == '{') {
             next();
             i = 0; // Enum value starts from 0
             while (tk != '}') {
                 // Current token should be enum name.
                 // If current token is not identifier, stop parsing.
-                if (tk != Id)
+                if (tk != Id) {
                     fatal("bad enum identifier");
+                }
                 dd = id;
                 next();
                 if (tk == Assign) {
                     next();
                     expr(Cond);
-                    if (ast_Tk(n) != Num)
+                    if (ast_Tk(n) != Num) {
                         fatal("bad enum initializer");
+                    }
                     i = Num_entry(n).val;
                     n += Num_words; // Set enum value
                 }
                 dd->class = Num;
                 dd->type = INT;
                 dd->val = i++;
-                if (tk == ',')
+                if (tk == ',') {
                     next(); // If current token is ",", skip.
+                }
             }
             next(); // Skip "}"
         } else if (tk == Id) {
-            if (ctx != Par)
+            if (ctx != Par) {
                 fatal("enum can only be declared as parameter");
+            }
             id->type = INT;
             id->class = ctx;
             id->val = ld++;
@@ -3460,8 +3668,9 @@ static void stmt(int ctx) {
             atk = tk;
             next();
             if (tk == Id) {
-                if (!id->type)
+                if (!id->type) {
                     id->type = tnew++ << 2;
+                }
                 bt = id->type;
                 next();
             } else {
@@ -3469,8 +3678,9 @@ static void stmt(int ctx) {
             }
             if (tk == '{') {
                 next();
-                if (members[bt >> 2])
+                if (members[bt >> 2]) {
                     fatal("duplicate structure definition");
+                }
                 tsize[bt >> 2] = 0; // for unions
                 i = 0;
                 while (tk != '}') {
@@ -3485,8 +3695,9 @@ static void stmt(int ctx) {
                     case Struct:
                     case Union:
                         next();
-                        if (tk != Id || id->type <= ATOM_TYPE || id->type >= PTR)
+                        if (tk != Id || id->type <= ATOM_TYPE || id->type >= PTR) {
                             fatal("bad struct/union declaration");
+                        }
                         mbt = id->type;
                         next();
                         break;
@@ -3499,8 +3710,9 @@ static void stmt(int ctx) {
                             next();
                             ty += PTR;
                         }
-                        if (tk != Id)
+                        if (tk != Id) {
                             fatal("bad struct member definition");
+                        }
                         sz = (ty >= PTR) ? sizeof(int) : tsize[ty >> 2];
                         struct member_s* m = cc_malloc(sizeof(struct member_s), 1);
                         m->id = id;
@@ -3518,18 +3730,21 @@ static void stmt(int ctx) {
                         members[bt >> 2] = m;
                         i += sz;
                         if (atk == Union) {
-                            if (i > tsize[bt >> 2])
+                            if (i > tsize[bt >> 2]) {
                                 tsize[bt >> 2] = i;
+                            }
                             i = 0;
                         }
-                        if (tk == ',')
+                        if (tk == ',') {
                             next();
+                        }
                     }
                     next();
                 }
                 next();
-                if (atk != Union)
+                if (atk != Union) {
                     tsize[bt >> 2] = i;
+                }
             }
             break;
         }
@@ -3548,16 +3763,20 @@ static void stmt(int ctx) {
             }
             switch (ctx) { // check non-callable identifiers
             case Glo:
-                if (tk != Id)
+                if (tk != Id) {
                     fatal("bad global declaration");
-                if (id->class >= ctx)
+                }
+                if (id->class >= ctx) {
                     fatal("duplicate global definition");
+                }
                 break;
             case Loc:
-                if (tk != Id)
+                if (tk != Id) {
                     fatal("bad local declaration");
-                if (id->class >= ctx)
+                }
+                if (id->class >= ctx) {
                     fatal("duplicate local definition");
+                }
                 break;
             }
             next();
@@ -3566,19 +3785,24 @@ static void stmt(int ctx) {
                 rtt = (ty == 0 && !memcmp(dd->name, "void", 4)) ? -1 : ty;
             }
             dd = id;
-            if (dd->forward && (dd->type != ty))
+            if (dd->forward && (dd->type != ty)) {
                 fatal("Function return type does not match prototype");
+            }
             dd->type = ty;
             if (tk == '(') { // function
-                if (b != 0)
+                if (b != 0) {
                     fatal("func decl can't be mixed with var decl(s)");
-                if (ctx != Glo)
+                }
+                if (ctx != Glo) {
                     fatal("nested function");
-                if (ty > ATOM_TYPE && ty < PTR)
+                }
+                if (ty > ATOM_TYPE && ty < PTR) {
                     fatal("return type can't be struct");
+                }
                 if (id->class == Func && id->val > (int)text_base && id->val < (int)e &&
-                    id->forward == 0)
+                    id->forward == 0) {
                     fatal("duplicate global definition");
+                }
                 int ddetype = 0;
                 dd->class = Func;       // type is function
                 dd->val = (int)(e + 1); // function Pointer? offset/address
@@ -3591,30 +3815,35 @@ static void stmt(int ctx) {
                         ++nf;
                         ++ddetype;
                     }
-                    if (tk == ',')
+                    if (tk == ',') {
                         next();
+                    }
                 }
-                if (ld > ADJ_MASK)
+                if (ld > ADJ_MASK) {
                     fatal("maximum of %d function parameters", ADJ_MASK);
+                }
                 // function etype is not like other etypes
                 next();
                 ddetype = (ddetype << 10) + (nf << 5) + ld; // prm info
-                if (dd->forward && (ddetype != dd->etype))
+                if (dd->forward && (ddetype != dd->etype)) {
                     fatal("parameters don't match prototype");
+                }
                 dd->etype = ddetype;
                 uint16_t* se;
                 if (tk == ';') { // check for prototype
                     se = e;
-                    if (!((int)e & 2))
+                    if (!((int)e & 2)) {
                         emit(0x46c0); // nop
-                    emit(0x4800);     // ldr r0, [pc, #0]
-                    emit(0xe001);     // b.n 1
+                    }
+                    emit(0x4800); // ldr r0, [pc, #0]
+                    emit(0xe001); // b.n 1
                     dd->forward = e;
                     emit_word(0);
                     emit(0x4700); // bx  r0
                 } else {          // function with body
-                    if (tk != '{')
+                    if (tk != '{') {
                         fatal("bad function definition");
+                    }
                     loc = ++ld;
                     if (dd->forward) {
                         uint16_t* te = e;
@@ -3632,11 +3861,13 @@ static void stmt(int ctx) {
                         int* t = n;
                         check_label(&t);
                         stmt(Loc);
-                        if (t != n)
+                        if (t != n) {
                             ast_Begin(t);
+                        }
                     }
-                    if (rtf == 0 && rtt != -1)
+                    if (rtf == 0 && rtt != -1) {
                         fatal("expecting return value");
+                    }
                     ast_Enter(ld - loc);
                     ncas = 0;
                     se = e;
@@ -3667,16 +3898,17 @@ static void stmt(int ctx) {
                         id = id->next;
                         cc_free(id3);
                         id2->next = id;
-                    } else if (id->class == 0 && id->type == -1)
+                    } else if (id->class == 0 && id->type == -1) {
                         fatal("%d: label %.*s not defined\n", lineno, id->hash & 0x3f, id->name);
-                    else {
+                    } else {
                         id2 = id;
                         id = id->next;
                     }
                 }
             } else {
-                if (ty > ATOM_TYPE && ty < PTR && tsize[bt >> 2] == 0)
+                if (ty > ATOM_TYPE && ty < PTR && tsize[bt >> 2] == 0) {
                     fatal("struct/union forward declaration is unsupported");
+                }
                 dd->hclass = dd->class;
                 dd->class = ctx;
                 dd->htype = dd->type;
@@ -3692,8 +3924,9 @@ static void stmt(int ctx) {
                 }
                 sz = (sz + 3) & -4;
                 if (ctx == Glo) {
-                    if (sz > 1)
+                    if (sz > 1) {
                         data = (char*)(((int)data + 3) & ~3);
+                    }
                     if (src_opt && !dd->inserted) {
                         int len = dd->hash & 0x3f;
                         char ch = dd->name[len];
@@ -3702,26 +3935,30 @@ static void stmt(int ctx) {
                         dd->name[len] = ch;
                     }
                     dd->val = (int)data;
-                    if ((data + sz) > (data_base + DATA_BYTES))
+                    if ((data + sz) > (data_base + DATA_BYTES)) {
                         fatal("program data exceeds data segment");
+                    }
                     data += sz;
                 } else if (ctx == Loc) {
                     dd->val = (ld += (sz + 3) / sizeof(int));
                 } else if (ctx == Par) {
-                    if (ty > ATOM_TYPE && ty < PTR) // local struct decl
+                    if (ty > ATOM_TYPE && ty < PTR) { // local struct decl
                         fatal("struct parameters must be pointers");
+                    }
                     dd->val = ld++;
                 }
                 if (tk == Assign) {
                     next();
-                    if (ctx == Par)
+                    if (ctx == Par) {
                         fatal("default arguments not supported");
-                    if (tk == '{' && (dd->type & 3))
+                    }
+                    if (tk == '{' && (dd->type & 3)) {
                         init_array(dd, nd, j);
-                    else {
+                    } else {
                         if (ctx == Loc) {
-                            if (b == 0)
+                            if (b == 0) {
                                 ast_End();
+                            }
                             b = n;
                             ast_Loc(loc - dd->val);
                             a = n;
@@ -3735,40 +3972,46 @@ static void stmt(int ctx) {
                             i = ty;
                             expr(Cond);
                             typecheck(Assign, i, ty);
-                            if (ast_Tk(n) != Num && ast_Tk(n) != NumF)
+                            if (ast_Tk(n) != Num && ast_Tk(n) != NumF) {
                                 fatal("global assignment must eval to lit expr");
-                            if (ty == CHAR + PTR && (dd->type & 3) != 1)
+                            }
+                            if (ty == CHAR + PTR && (dd->type & 3) != 1) {
                                 fatal("use decl char foo[nn] = \"...\";");
+                            }
                             if ((ast_Tk(n) == Num && (i == CHAR || i == INT)) ||
-                                (ast_Tk(n) == NumF && i == FLOAT))
+                                (ast_Tk(n) == NumF && i == FLOAT)) {
                                 *((int*)dd->val) = Num_entry(n).val;
-                            else if (ty == CHAR + PTR) {
+                            } else if (ty == CHAR + PTR) {
                                 i = strlen((char*)Num_entry(n).val) + 1;
                                 if (i > (dd->etype + 1)) {
                                     i = dd->etype + 1;
                                     printf("%d: string truncated to width\n", lineno);
                                 }
                                 memcpy((char*)dd->val, (char*)Num_entry(n).val, i);
-                            } else
+                            } else {
                                 fatal("unsupported global initializer");
+                            }
                             n += Num_words;
                         }
                     }
                 }
             }
-            if (ctx != Par && tk == ',')
+            if (ctx != Par && tk == ',') {
                 next();
+            }
         }
         return;
     case If:
         next();
-        if (tk != '(')
+        if (tk != '(') {
             fatal("open parenthesis expected");
+        }
         next();
         expr(Assign);
         a = n;
-        if (tk != ')')
+        if (tk != ')') {
             fatal("close parenthesis expected");
+        }
         next();
         stmt(ctx);
         b = n;
@@ -3776,19 +4019,22 @@ static void stmt(int ctx) {
             next();
             stmt(ctx);
             d = n;
-        } else
+        } else {
             d = 0;
+        }
         ast_Cond((int)d, (int)b, (int)a);
         return;
     case While:
         next();
-        if (tk != '(')
+        if (tk != '(') {
             fatal("open parenthesis expected");
+        }
         next();
         expr(Assign);
         b = n; // condition
-        if (tk != ')')
+        if (tk != ')') {
             fatal("close parenthesis expected");
+        }
         next();
         ++brkc;
         ++cntc;
@@ -3806,17 +4052,20 @@ static void stmt(int ctx) {
         a = n; // parse body of "do-while"
         --brkc;
         --cntc;
-        if (tk != While)
+        if (tk != While) {
             fatal("while expected");
+        }
         next();
-        if (tk != '(')
+        if (tk != '(') {
             fatal("open parenthesis expected");
+        }
         next();
         ast_End();
         expr(Assign);
         b = n;
-        if (tk != ')')
+        if (tk != ')') {
             fatal("close parenthesis expected");
+        }
         next();
         ast_While((int)b, (int)a, DoWhile);
         return;
@@ -3825,13 +4074,15 @@ static void stmt(int ctx) {
         j = (int)ncas;
         ncas = &i;
         next();
-        if (tk != '(')
+        if (tk != '(') {
             fatal("open parenthesis expected");
+        }
         next();
         expr(Assign);
         a = n;
-        if (tk != ')')
+        if (tk != ')') {
             fatal("close parenthesis expected");
+        }
         next();
         ++swtc;
         ++brkc;
@@ -3843,49 +4094,58 @@ static void stmt(int ctx) {
         ncas = (int*)j;
         return;
     case Case:
-        if (!swtc)
+        if (!swtc) {
             fatal("case-statement outside of switch");
+        }
         i = *ncas;
         next();
         expr(Or);
         a = n;
-        if (ast_Tk(n) != Num)
+        if (ast_Tk(n) != Num) {
             fatal("case label not a numeric literal");
+        }
         j = Num_entry(n).val;
         // Num_entry(n).val;
         *ncas = j;
         ast_End();
-        if (tk != ':')
+        if (tk != ':') {
             fatal("colon expected");
+        }
         next();
         stmt(ctx);
         b = n;
         ast_Case((int)b, (int)a);
         return;
     case Break:
-        if (!brkc)
+        if (!brkc) {
             fatal("misplaced break statement");
+        }
         next();
-        if (tk != ';')
+        if (tk != ';') {
             fatal("semicolon expected");
+        }
         next();
         ast_Single(Break);
         return;
     case Continue:
-        if (!cntc)
+        if (!cntc) {
             fatal("misplaced continue statement");
+        }
         next();
-        if (tk != ';')
+        if (tk != ';') {
             fatal("semicolon expected");
+        }
         next();
         ast_Single(Continue);
         return;
     case Default:
-        if (!swtc)
+        if (!swtc) {
             fatal("default-statement outside of switch");
+        }
         next();
-        if (tk != ':')
+        if (tk != ':') {
             fatal("colon expected");
+        }
         next();
         stmt(ctx);
         a = n;
@@ -3898,17 +4158,20 @@ static void stmt(int ctx) {
         if (tk != ';') {
             expr(Assign);
             a = n;
-            if (rtt == -1)
+            if (rtt == -1) {
                 fatal("not expecting return value");
+            }
             typecheck(Eq, rtt, ty);
         } else {
-            if (rtt != -1)
+            if (rtt != -1) {
                 fatal("return value expected");
+            }
         }
         rtf = 1; // signal a return statement exisits
         ast_Return((int)a);
-        if (tk != ';')
+        if (tk != ';') {
             fatal("semicolon expected");
+        }
         next();
         return;
     /* For iteration is implemented as:
@@ -3917,12 +4180,14 @@ static void stmt(int ctx) {
      */
     case For:
         next();
-        if (tk != '(')
+        if (tk != '(') {
             fatal("open parenthesis expected");
+        }
         next();
         ast_End();
-        if (tk != ';')
+        if (tk != ';') {
             expr(Assign);
+        }
         while (tk == ',') {
             int* f = n;
             next();
@@ -3930,21 +4195,25 @@ static void stmt(int ctx) {
             ast_Begin(f);
         }
         d = n;
-        if (tk != ';')
+        if (tk != ';') {
             fatal("semicolon expected");
+        }
         next();
         ast_End();
         if (tk != ';') {
             expr(Assign);
             a = n; // Point to entry of for cond
-            if (tk != ';')
+            if (tk != ';') {
                 fatal("semicolon expected");
-        } else
+            }
+        } else {
             a = 0;
+        }
         next();
         ast_End();
-        if (tk != ')')
+        if (tk != ')') {
             expr(Assign);
+        }
         while (tk == ',') {
             int* g = n;
             next();
@@ -3952,8 +4221,9 @@ static void stmt(int ctx) {
             ast_Begin(g);
         }
         b = n;
-        if (tk != ')')
+        if (tk != ')') {
             fatal("close parenthesis expected");
+        }
         next();
         ++brkc;
         ++cntc;
@@ -3965,13 +4235,16 @@ static void stmt(int ctx) {
         return;
     case Goto:
         next();
-        if (tk != Id || (id->type != 0 && id->type != -1) || (id->class != Label && id->class != 0))
+        if (tk != Id || (id->type != 0 && id->type != -1) ||
+            (id->class != Label && id->class != 0)) {
             fatal("goto expects label");
+        }
         id->type = -1; // hack for id->class deficiency
         ast_Goto((int)id);
         next();
-        if (tk != ';')
+        if (tk != ';') {
             fatal("semicolon expected");
+        }
         next();
         return;
     // stmt -> '{' stmt '}'
@@ -3982,8 +4255,9 @@ static void stmt(int ctx) {
             a = n;
             check_label(&a);
             stmt(ctx);
-            if (a != n)
+            if (a != n) {
                 ast_Begin(a);
+            }
         }
         next();
         return;
@@ -3994,8 +4268,9 @@ static void stmt(int ctx) {
         return;
     default:
         expr(Assign);
-        if (tk != ';' && tk != ',')
+        if (tk != ';' && tk != ',') {
             fatal("semicolon expected");
+        }
         next();
     }
 }
@@ -4025,12 +4300,13 @@ static int common_vfunc(int etype, int prntf, int* sp) {
     int stkp = 0;
     int n_parms = (etype & ADJ_MASK);
     etype >>= 10;
-    for (int j = n_parms - 1; j >= 0; j--)
-        if ((etype & (1 << j)) == 0)
+    for (int j = n_parms - 1; j >= 0; j--) {
+        if ((etype & (1 << j)) == 0) {
             stack[stkp++] = sp[j];
-        else {
-            if (stkp & 1)
+        } else {
+            if (stkp & 1) {
                 stack[stkp++] = 0;
+            }
             union {
                 double d;
                 int ii[2];
@@ -4039,9 +4315,11 @@ static int common_vfunc(int etype, int prntf, int* sp) {
             stack[stkp++] = u.ii[0];
             stack[stkp++] = u.ii[1];
         }
+    }
     int r = cc_printf(stack, stkp, prntf);
-    if (prntf)
+    if (prntf) {
         fflush(stdout);
+    }
     return r;
 }
 
@@ -4070,8 +4348,9 @@ static int x_sprintf(int etype) {
 // Help display
 
 static void show_defines(const struct define_grp* grp) {
-    if (grp->name == 0)
+    if (grp->name == 0) {
         return;
+    }
     printf("Predefined symbols:\n\n");
     int x, y;
     get_screen_xy(&x, &y);
@@ -4090,8 +4369,9 @@ static void show_defines(const struct define_grp* grp) {
             }
         }
     }
-    if (pos)
+    if (pos) {
         printf("\n");
+    }
 }
 
 static void show_externals(int i) {
@@ -4099,7 +4379,7 @@ static void show_externals(int i) {
     int x, y;
     get_screen_xy(&x, &y);
     int pos = 0;
-    for (int j = 0; j < numof(externs); j++)
+    for (int j = 0; j < numof(externs); j++) {
         if (externs[j].grp == includes[i].grp) {
             if (pos == 0) {
                 pos = strlen(externs[j].name);
@@ -4114,52 +4394,55 @@ static void show_externals(int i) {
                 }
             }
         }
-    if (pos)
+    }
+    if (pos) {
         printf("\n");
+    }
 }
 
 static void help(char* lib) {
     if (!lib) {
-        printf(
-            "usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]\n"
-            "          [-o exename] filename.c\n"
-            "  -s      display disassembly and quit.\n"
-            "  -o      name of executable output file.\n"
-            "  -u      treat char type as unsigned.\n"
-            "  -n      turn off peep-hole optimization\n"
-            "  -Dsymbol[=integer]\n"
-            "          define symbol for limited pre-processor.\n"
-            "  -h      show compiler help and list libraries.\n"
-            "  -h lib  show available functions and symbols from <lib>.\n"
-            "  filename.c\n"
-            "          C source file name.\n"
-            "\n"
-            "Examples:\n"
-            "  cc hello.c\n"
-            "  cc -DFOO -DBAR=42 hello.c\n"
-            "  cc -h\n"
-            "  cc -h math\n"
-            "\n"
-            "Libraries:\n"
-            "  %s",
-            includes[0]
-        );
+        printf("usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]\n"
+               "          [-o exename] filename.c\n"
+               "  -s      display disassembly and quit.\n"
+               "  -o      name of executable output file.\n"
+               "  -u      treat char type as unsigned.\n"
+               "  -n      turn off peep-hole optimization\n"
+               "  -Dsymbol[=integer]\n"
+               "          define symbol for limited pre-processor.\n"
+               "  -h      show compiler help and list libraries.\n"
+               "  -h lib  show available functions and symbols from <lib>.\n"
+               "  filename.c\n"
+               "          C source file name.\n"
+               "\n"
+               "Examples:\n"
+               "  cc hello.c\n"
+               "  cc -DFOO -DBAR=42 hello.c\n"
+               "  cc -h\n"
+               "  cc -h math\n"
+               "\n"
+               "Libraries:\n"
+               "  %s",
+               includes[0]);
         for (int i = 1; includes[i].name; i++) {
             printf(", %s", includes[i].name);
-            if ((i % 8) == 0 && includes[i + 1].name)
+            if ((i % 8) == 0 && includes[i + 1].name) {
                 printf("\n  %s", includes[++i].name);
+            }
         }
         printf("\n");
         return;
     }
-    for (int i = 0; includes[i].name; i++)
+    for (int i = 0; includes[i].name; i++) {
         if (!strcmp(lib, includes[i].name)) {
             show_externals(i);
             printf("\n");
-            if (includes[i].grp)
+            if (includes[i].grp) {
                 show_defines(includes[i].grp);
+            }
             return;
         }
+    }
     fatal("unknown lib %s", lib);
     return;
 }
@@ -4203,8 +4486,9 @@ int cc(int mode, int argc, char** argv) {
     struct exe_s exe;
 
     // set the abort jump
-    if (setjmp(done_jmp))
+    if (setjmp(done_jmp)) {
         goto done;
+    }
 
     // compile mode
     if (mode == 0) {
@@ -4252,8 +4536,9 @@ int cc(int mode, int argc, char** argv) {
             if ((*argv)[1] == 'h') {
                 --argc;
                 ++argv;
-                if (argc)
+                if (argc) {
                     lib_name = *argv;
+                }
                 help(lib_name);
                 goto done;
             } else if ((*argv)[1] == 's') {
@@ -4263,23 +4548,26 @@ int cc(int mode, int argc, char** argv) {
             } else if ((*argv)[1] == 'o') {
                 --argc;
                 ++argv;
-                if (argc)
+                if (argc) {
                     ofn = *argv;
+                }
             } else if ((*argv)[1] == 'u') {
                 uchar_opt = 1;
             } else if ((*argv)[1] == 'D') {
                 p = &(*argv)[2];
                 next();
-                if (tk != Id)
+                if (tk != Id) {
                     fatal("bad -D identifier");
+                }
                 struct ident_s* dd = id;
                 next();
                 int i = 0;
                 if (tk == Assign) {
                     next();
                     expr(Cond);
-                    if (ast_Tk(n) != Num)
+                    if (ast_Tk(n) != Num) {
                         fatal("bad -D initializer: must be an integer");
+                    }
                     i = Num_entry(n).val;
                     n += Num_words;
                 }
@@ -4341,8 +4629,9 @@ int cc(int mode, int argc, char** argv) {
         // allocate the source buffer, terminate it, then close the file
         src_base = p = lp = cc_malloc(fl + 1, 1);
         // move the file contents to the source buffer
-        if (fs_file_read(fd, src_base, fl) != fl)
+        if (fs_file_read(fd, src_base, fl) != fl) {
             fatal("error reading source");
+        }
         src_base[fl] = 0;
         fs_file_close(fd);
         // free the file descriptor
@@ -4369,9 +4658,11 @@ int cc(int mode, int argc, char** argv) {
             next();
         }
         // check for undeclared forward functions
-        for (id = sym_base; id; id = id->next)
-            if (id->class == Func && id->forward)
+        for (id = sym_base; id; id = id->next) {
+            if (id->class == Func && id->forward) {
                 fatal("undeclared forward function %.*s", id->hash & 0x3f, id->name);
+            }
+        }
 
         // free all the compiler buffers
         cc_free_all();
@@ -4380,12 +4671,14 @@ int cc(int mode, int argc, char** argv) {
         sym_base = NULL;
         tsize = NULL;
 
-        if (src_opt)
+        if (src_opt) {
             disasm_cleanup(&state);
+        }
 
         // entry point main must be declared
-        if (!idmain->val)
+        if (!idmain->val) {
             fatal("main() not defined\n");
+        }
 
         // save the entry point address
         exe.entry = idmain->val;
@@ -4434,37 +4727,44 @@ int cc(int mode, int argc, char** argv) {
             fs_file_close(fd);
             cc_free(fd);
             fd = NULL;
-            if (fs_setattr(full_path(ofn), 1, "exe", 4) < LFS_ERR_OK)
+            if (fs_setattr(full_path(ofn), 1, "exe", 4) < LFS_ERR_OK) {
                 fatal("unable to set executable attribute");
+            }
             printf("\ntext  %06x\ndata  %06x\nentry %06x\nreloc %06x\n", exe.tsize, ds,
                    exe.entry - (int)text_base, exe.nreloc);
             goto done;
         }
-        if (src_opt)
+        if (src_opt) {
             goto done;
+        }
 
     } else { // loader mode
         // output file name is not optional
-        if (argc < 1)
+        if (argc < 1) {
             fatal("specify executable file name");
+        }
         ofn = argv[0];
         // check file attribute
         char buf[4];
-        if (fs_getattr(ofn, 1, buf, sizeof(buf)) != 4)
+        if (fs_getattr(ofn, 1, buf, sizeof(buf)) != 4) {
             fatal("file %s not found or not executable", ofn);
-        if (memcmp(buf, "exe", 4))
+        }
+        if (memcmp(buf, "exe", 4)) {
             fatal("file %s not found or not executable", ofn);
+        }
         // allocate file descriptor and open binary executable file
         fd = cc_malloc(sizeof(lfs_file_t), 1);
-        if (fs_file_open(fd, ofn, LFS_O_RDONLY) < LFS_ERR_OK)
+        if (fs_file_open(fd, ofn, LFS_O_RDONLY) < LFS_ERR_OK) {
             fatal("can't open file %s", ofn);
+        }
         // read the exe header
         if (fs_file_read(fd, &exe, sizeof(exe)) != sizeof(exe)) {
             fs_file_close(fd);
             fatal("error reading %s", ofn);
         }
-        if ((exe.dsize & 0xc0000000) != 0xc0000000)
+        if ((exe.dsize & 0xc0000000) != 0xc0000000) {
             fatal("executable compiled with earlier version not compatible, please recompile");
+        }
         // clear the code segment for good measure though not necessary
         memset(__StackLimit, 0, TEXT_BYTES + DATA_BYTES);
         // read in the code segment
@@ -4489,15 +4789,16 @@ int cc(int mode, int argc, char** argv) {
                 fatal("error reading %s", ofn);
             }
             int v = *((int*)addr);
-            if (v < 0)
+            if (v < 0) {
                 *((int*)addr) = (int)fops[-v];
-            else {
-                if (externs[v].is_printf)
+            } else {
+                if (externs[v].is_printf) {
                     *((int*)addr) = (int)x_printf;
-                else if (externs[v].is_sprintf)
+                } else if (externs[v].is_sprintf) {
                     *((int*)addr) = (int)x_sprintf;
-                else
+                } else {
                     *((int*)addr) = (int)externs[v].extrn;
+                }
             }
         }
         // close the file and free its descriptor
@@ -4523,14 +4824,16 @@ int cc(int mode, int argc, char** argv) {
     printf("\nCC = %d\n", rslt);
 
 done: // clean up and return
-    if (fd)
+    if (fd) {
         fs_file_close(fd);
+    }
     // unclosed files
     while (file_list) {
-        if (file_list->is_dir)
+        if (file_list->is_dir) {
             fs_dir_close(&file_list->u.dir);
-        else
+        } else {
             fs_file_close(&file_list->u.file);
+        }
         file_list = file_list->next;
     }
     // unfreed memory
