@@ -44,6 +44,7 @@ else()
 endif()
 
 add_executable(${PSHELL}
+    pshell/cc_cmds.c
     pshell/cpu_cmds.c
     pshell/file_cmds.c
     pshell/fs_cmds.c

@@ -75,3 +75,11 @@ uint8_t version_cmd(void) {
 #endif
     return 0;
 }
+
+uint8_t help_cmd(void) {
+    printf("\n");
+    for (int i = 0; cmd_table[i].name; i++) {
+        printf("%7s - %s\n", cmd_table[i].name, cmd_table[i].descr);
+    }
+    return 0;
+}

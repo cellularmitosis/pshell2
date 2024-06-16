@@ -8,15 +8,11 @@
 
 #include "main.h"
 
-#include <ctype.h>
-#include <errno.h>
-#include <stdarg.h>
 #include <stdio.h>
 
 #include "hardware/structs/scb.h"
 #include "hardware/watchdog.h"
 
-#include "pico/stdio.h"
 #include "pico/stdlib.h"
 #include "pico/sync.h"
 
@@ -27,6 +23,7 @@
 #include "tests.h"
 #endif
 
+#include "cc_cmds.h"
 #include "cpu_cmds.h"
 #include "file_cmds.h"
 #include "fs_cmds.h"
@@ -37,8 +34,6 @@
 #include "vi_cmd.h"
 
 #include "terminal.h"
-
-#define COPYRIGHT "(c)" // for ASCII
 
 // Shell global state:
 #define MAX_ARGS 16
@@ -60,17 +55,6 @@ buf_t sh_message;
 
 static bool run = true;
 
-static uint8_t cc_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    if (!cc(0, sh_argc, sh_argv)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 // clang-format off
 cmd_t cmd_table[] = {
     {"cat",     cat_cmd,        "display a text file"},
@@ -80,6 +64,7 @@ cmd_t cmd_table[] = {
     {"cp",      cp_cmd,         "copy a file"},
     {"df",      df_cmd,         "display the filesystem usage"},
     {"format",  format_cmd,     "format the filesystem"},
+    {"help",    help_cmd,       "display this message"},
     {"ls",      ls_cmd,         "list a directory, -a to show hidden files"},
     {"mkdir",   mkdir_cmd,      "create a directory"},
     {"mount",   mount_cmd,      "mount the filesystem"},
@@ -242,14 +227,6 @@ static uint8_t tests_cmd(void) {
 }
 #endif
 
-static uint8_t help(void) {
-    printf("\n");
-    for (int i = 0; cmd_table[i].name; i++) {
-        printf("%7s - %s\n", cmd_table[i].name, cmd_table[i].descr);
-    }
-    return 0;
-}
-
 static const char* search_cmds(int len) {
     if (len == 0) {
         return NULL;
@@ -312,7 +289,7 @@ static bool run_as_cmd(const char* dir) {
 }
 
 // Print the shell prompt, including any non-zero exit status of the previous command.
-static void print_prompt(uint8_t previous_exit_status) {
+static void print_sh_prompt(uint8_t previous_exit_status) {
     printf("\n" VT_BOLD "%s$ ", full_path(""));
     if (previous_exit_status != 0) {
         printf("[%i] ", previous_exit_status);
@@ -336,7 +313,7 @@ int main(void) {
     bool detected = screen_size();
     printf(VT_CLEAR);
     fflush(stdout);
-    printf("\n" VT_BOLD "Pico Shell" VT_NORMAL " - Copyright " COPYRIGHT " 1883 Thomas Edison\n"
+    printf("\n" VT_BOLD "Pico Shell" VT_NORMAL " - Copyright (c) 1883 Thomas Edison\n"
            "This program comes with ABSOLUTELY NO WARRANTY.\n"
            "This is free software, and you are welcome to redistribute it\n"
            "under certain conditions. See LICENSE.md file for details.\n");
@@ -402,7 +379,7 @@ int main(void) {
     }
     uint8_t last_ret = 0;
     while (run) {
-        print_prompt(last_ret);
+        print_sh_prompt(last_ret);
         fflush(stdout);
         parse_sh_command();
         sh_message[0] = 0;
@@ -428,7 +405,7 @@ int main(void) {
                 }
             }
         } else {
-            last_ret = help();
+            last_ret = help_cmd();
         }
     }
     fs_unload();
