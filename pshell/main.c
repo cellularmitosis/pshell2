@@ -41,18 +41,24 @@
 // #define COPYRIGHT "\u00a9" // for UTF8
 #define COPYRIGHT "(c)" // for ASCII
 
+// Shell global state:
 #define MAX_ARGS 16
 int sh_argc;
 char* sh_argv[MAX_ARGS + 1];
+buf_t sh_pwd = "/";
 
+// Terminal global state.
 uint8_t term_cols = 80;
 uint8_t term_rows = 24;
 
-buf_t sh_cmd_buffer;
-buf_t path;
-buf_t curdir = "/";
-buf_t sh_message;
+// Filesystem global state.
 bool mounted = false;
+
+// Temporaries,  shared state between functions.
+buf_t sh_cmd_buffer;
+buf_t path_tmp;
+buf_t sh_message;
+
 static bool run = true;
 
 void set_translate_crlf(bool enable) {
@@ -111,30 +117,30 @@ char* full_path(const char* name) {
         return NULL;
     }
     if (name[0] == '/') {
-        strcpy(path, name);
-        return path;
+        strcpy(path_tmp, name);
+        return path_tmp;
     }
     if (strncmp(name, "./", 2) == 0) {
         name += 2;
     }
-    strcpy(path, curdir);
+    strcpy(path_tmp, sh_pwd);
     if (strncmp(name, "../", 3) != 0) {
         if (name[0]) {
-            strcat(path, name);
+            strcat(path_tmp, name);
         }
     } else {
         name += 3; // root doen't have a parent
-        char* cp = strrchr(path, '/');
+        char* cp = strrchr(path_tmp, '/');
         if (cp != NULL) {
             *cp = 0;
         }
-        cp = strrchr(path, '/');
+        cp = strrchr(path_tmp, '/');
         if (cp != NULL) {
             *(cp + 1) = 0;
         }
-        strcat(path, name);
+        strcat(path_tmp, name);
     }
-    return path;
+    return path_tmp;
 }
 
 static void parse_sh_command(void) {
@@ -185,24 +191,24 @@ static uint8_t cd_cmd(void) {
         return 1;
     }
     if (sh_argc < 2) {
-        strcpy(path, "/");
+        strcpy(path_tmp, "/");
         goto cd_done;
     }
     if (strcmp(sh_argv[1], ".") == 0) {
         goto cd_done;
     }
     if (strcmp(sh_argv[1], "..") == 0) {
-        if (strcmp(curdir, "/") == 0) {
+        if (strcmp(sh_pwd, "/") == 0) {
             strcpy(sh_message, "not a directory");
             return 2;
         }
-        strcpy(path, curdir);
-        char* cp = strrchr(path, '/');
+        strcpy(path_tmp, sh_pwd);
+        char* cp = strrchr(path_tmp, '/');
         if (cp == NULL) {
-            cp = curdir;
+            cp = sh_pwd;
         }
         *cp = 0;
-        cp = strrchr(path, '/');
+        cp = strrchr(path_tmp, '/');
         if (cp != NULL) {
             *(cp + 1) = 0;
         }
@@ -210,17 +216,17 @@ static uint8_t cd_cmd(void) {
     }
     full_path(sh_argv[1]);
     lfs_dir_t dir;
-    if (fs_dir_open(&dir, path) < LFS_ERR_OK) {
+    if (fs_dir_open(&dir, path_tmp) < LFS_ERR_OK) {
         strcpy(sh_message, "not a directory");
         return 3;
     }
     fs_dir_close(&dir);
 cd_done:
-    strcpy(curdir, path);
-    if (curdir[strlen(curdir) - 1] != '/') {
-        strcat(curdir, "/");
+    strcpy(sh_pwd, path_tmp);
+    if (sh_pwd[strlen(sh_pwd) - 1] != '/') {
+        strcat(sh_pwd, "/");
     }
-    sprintf(sh_message, "changed to %s", curdir);
+    sprintf(sh_message, "changed to %s", sh_pwd);
     return 0;
 }
 

@@ -309,12 +309,12 @@ uint8_t ls_cmd(void) {
     if (bad_mount(true)) {
         return 1;
     }
-    int show_all = 0;
+    bool all_flag = false;
     char** av = sh_argv;
     if ((sh_argc > 1) && (strcmp(av[1], "-a") == 0)) {
         sh_argc--;
         av++;
-        show_all = 1;
+        all_flag = true;
     }
     if (sh_argc > 1) {
         full_path(av[1]);
@@ -322,7 +322,7 @@ uint8_t ls_cmd(void) {
         full_path("");
     }
     lfs_dir_t dir;
-    if (fs_dir_open(&dir, path) < LFS_ERR_OK) {
+    if (fs_dir_open(&dir, path_tmp) < LFS_ERR_OK) {
         strcpy(sh_message, "not a directory");
         return 2;
     }
@@ -331,7 +331,7 @@ uint8_t ls_cmd(void) {
     while (fs_dir_read(&dir, &info) > 0) {
         if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
             if (info.type == LFS_TYPE_DIR) {
-                if ((info.name[0] != '.') || show_all) {
+                if ((info.name[0] != '.') || all_flag) {
                     printf(" %7d %s/\n", info.size, info.name);
                 }
             }
@@ -341,7 +341,7 @@ uint8_t ls_cmd(void) {
     while (fs_dir_read(&dir, &info) > 0) {
         if (strcmp(info.name, ".") && strcmp(info.name, "..")) {
             if (info.type == LFS_TYPE_REG) {
-                if ((info.name[0] != '.') || show_all) {
+                if ((info.name[0] != '.') || all_flag) {
                     printf(" %7d %s\n", info.size, info.name);
                 }
             }

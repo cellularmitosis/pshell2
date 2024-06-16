@@ -9,10 +9,7 @@ typedef char buf_t[128];
 // Shell global state:
 extern int sh_argc;
 extern char* sh_argv[];
-extern buf_t sh_message;
-extern buf_t sh_cmd_buffer;
-extern buf_t path;
-extern buf_t curdir;
+extern buf_t sh_pwd;
 
 // Terminal global state:
 extern uint8_t term_cols;
@@ -20,6 +17,11 @@ extern uint8_t term_rows;
 
 // Filesystem global state:
 extern bool mounted;
+
+// Temporaries, shared state between functions:
+extern buf_t sh_message;
+extern buf_t sh_cmd_buffer;
+extern buf_t path_tmp;
 
 // Util functions:
 char* full_path(const char* name);
