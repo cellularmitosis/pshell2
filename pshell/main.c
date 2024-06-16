@@ -24,16 +24,18 @@
 #include "cc.h"
 #include "io.h"
 #include "readln.h"
-#include "vi.h"
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
 #include "tests.h"
 #endif
+#include "vi.h"
 
 #include "file_cmds.h"
 #include "fs_cmds.h"
 #include "modem_cmds.h"
 #include "tar_cmd.h"
 #include "terminal_cmds.h"
+#include "vi_cmd.h"
+
 #include "terminal.h"
 
 // #define COPYRIGHT "\u00a9" // for UTF8
@@ -324,15 +326,6 @@ static uint8_t tests_cmd(void) {
     return 0;
 }
 #endif
-
-static uint8_t vi_cmd(void) {
-    if (bad_mount(true)) {
-        return 1;
-    }
-    // TODO: vi always returns 0
-    vi(sh_argc - 1, sh_argv + 1);
-    return 0;
-}
 
 static uint8_t reboot_cmd(void) {
     // release any resources we were using
