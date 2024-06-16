@@ -33,22 +33,22 @@
 #include "fs_cmds.h"
 #include "modem_cmds.h"
 #include "tar_cmd.h"
+#include "terminal_cmds.h"
+#include "terminal.h"
 
 // #define COPYRIGHT "\u00a9" // for UTF8
 #define COPYRIGHT "(c)" // for ASCII
-
-#define VT_ESC "\033"
-#define VT_CLEAR VT_ESC "[H" VT_ESC "[J"
-#define VT_BLINK VT_ESC "[5m"
-#define VT_BOLD VT_ESC "[1m"
-#define VT_NORMAL VT_ESC "[m"
 
 #define MAX_ARGS 16
 int sh_argc;
 char* sh_argv[MAX_ARGS + 1];
 
-static uint32_t screen_x = 80, screen_y = 24;
-static buf_t cmd_buffer, path, curdir = "/";
+uint8_t term_cols = 80;
+uint8_t term_rows = 24;
+
+buf_t sh_cmd_buffer;
+static buf_t path;
+static buf_t curdir = "/";
 buf_t sh_message;
 bool mounted = false;
 static bool run = true;
@@ -66,8 +66,8 @@ void set_translate_crlf(bool enable) {
 
 // used by Vi
 void get_screen_xy(uint32_t* x, uint32_t* y) {
-    *x = screen_x;
-    *y = screen_y;
+    *x = term_cols;
+    *y = term_rows;
 }
 
 static void echo_key(char c) {
@@ -137,11 +137,11 @@ char* full_path(const char* name) {
 
 static void parse_cmd(void) {
     // read line into buffer
-    char* cp = cmd_buffer;
-    char* cp_end = cp + sizeof(cmd_buffer);
+    char* cp = sh_cmd_buffer;
+    char* cp_end = cp + sizeof(sh_cmd_buffer);
     char prompt[128];
     snprintf(prompt, sizeof(prompt), VT_BOLD "%s: " VT_NORMAL, full_path(""));
-    cp = dgreadln(cmd_buffer, mounted, prompt);
+    cp = dgreadln(sh_cmd_buffer, mounted, prompt);
     bool not_last = true;
     for (sh_argc = 0; not_last && (sh_argc < MAX_ARGS); sh_argc++) {
         while (*cp == ' ') {
@@ -334,11 +334,6 @@ static uint8_t vi_cmd(void) {
     return 0;
 }
 
-static uint8_t clear_cmd(void) {
-    strcpy(sh_message, VT_CLEAR "\n");
-    return 0;
-}
-
 static uint8_t reboot_cmd(void) {
     // release any resources we were using
     if (mounted) {
@@ -384,101 +379,6 @@ static uint8_t version_cmd(void) {
     printf("gcc %s\n", __VERSION__);
 #endif
     return 0;
-}
-
-static bool cursor_pos(uint32_t* x, uint32_t* y) {
-    int rc = false;
-    *x = 80;
-    *y = 24;
-    do {
-        printf(VT_ESC "[6n");
-        fflush(stdout);
-        int k = getchar_timeout_us(100000);
-        if (k == PICO_ERROR_TIMEOUT) {
-            break;
-        }
-        char* cp = cmd_buffer;
-        while (cp < cmd_buffer + sizeof cmd_buffer) {
-            k = getchar_timeout_us(100000);
-            if (k == PICO_ERROR_TIMEOUT) {
-                break;
-            }
-            *cp++ = k;
-        }
-        if (cp == cmd_buffer) {
-            break;
-        }
-        if (cmd_buffer[0] != '[') {
-            break;
-        }
-        *cp = 0;
-        if (cp - cmd_buffer < 5) {
-            break;
-        }
-        char* end;
-        uint32_t row, col;
-        if (!isdigit(cmd_buffer[1])) {
-            break;
-        }
-        errno = 0;
-        row = strtoul(cmd_buffer + 1, &end, 10);
-        if (errno) {
-            break;
-        }
-        if (*end != ';' || !isdigit(end[1])) {
-            break;
-        }
-        col = strtoul(end + 1, &end, 10);
-        if (errno) {
-            break;
-        }
-        if (*end != 'R') {
-            break;
-        }
-        if (row < 1 || col < 1 || (row | col) > 0x7fff) {
-            break;
-        }
-        *x = col;
-        *y = row;
-        rc = true;
-    } while (false);
-    return rc;
-}
-
-static bool screen_size(void) {
-    int rc = false;
-    screen_x = 80;
-    screen_y = 24;
-    uint32_t cur_x, cur_y;
-    do {
-        set_translate_crlf(false);
-        if (!cursor_pos(&cur_x, &cur_y)) {
-            break;
-        }
-        printf(VT_ESC "[999;999H");
-        if (!cursor_pos(&screen_x, &screen_y)) {
-            break;
-        }
-        if (cur_x > screen_x) {
-            cur_x = screen_x;
-        }
-        if (cur_y > screen_y) {
-            cur_y = screen_y;
-        }
-        printf("\033[%d;%dH", cur_y, cur_x);
-        fflush(stdout);
-        rc = true;
-    } while (false);
-    set_translate_crlf(true);
-    return rc;
-}
-
-static uint8_t resize_cmd(void) {
-    if (!screen_size()) {
-        return 1;
-    } else {
-        return 0;
-    }
 }
 
 // clang-format off
@@ -527,7 +427,7 @@ static const char* search_cmds(int len) {
     }
     int i, last_i, count = 0;
     for (i = 0; cmd_table[i].name; i++) {
-        if (strncmp(cmd_buffer, cmd_table[i].name, len) == 0) {
+        if (strncmp(sh_cmd_buffer, cmd_table[i].name, len) == 0) {
             last_i = i;
             count++;
         }
@@ -630,7 +530,7 @@ int main(void) {
     }
     printf("\nboard: " PICO_BOARD ", console: %s [%u X %u], filesystem: %s\n\n"
            "enter command or hit ENTER for help\n\n",
-           console, screen_x, screen_y, buf);
+           console, term_rows, term_cols, buf);
     if (!detected) {
         printf("\nYour terminal does not respond to standard VT100 escape sequences"
                "\nsequences. The editor will likely not work at all!");

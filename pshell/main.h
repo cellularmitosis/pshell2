@@ -2,6 +2,7 @@
 #define _MAIN_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef char buf_t[128];
 
@@ -9,6 +10,11 @@ typedef char buf_t[128];
 extern int sh_argc;
 extern char* sh_argv[];
 extern buf_t sh_message;
+extern buf_t sh_cmd_buffer;
+
+// Terminal global state:
+extern uint8_t term_cols;
+extern uint8_t term_rows;
 
 // Filesystem global state:
 extern bool mounted;

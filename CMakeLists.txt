@@ -48,6 +48,7 @@ add_executable(${PSHELL}
     pshell/fs_cmds.c
     pshell/modem_cmds.c
     pshell/tar_cmd.c
+    pshell/terminal_cmds.c
     pshell/main.c
 )
 
