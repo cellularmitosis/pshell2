@@ -1,6 +1,8 @@
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
+#define PSHELL_VERSION "1.2.27 beta"
+
 #include <stdbool.h>
 #include <stdint.h>
 

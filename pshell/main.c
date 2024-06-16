@@ -55,6 +55,9 @@ buf_t sh_message;
 
 static bool run = true;
 
+// Are we using the UART or USB for the terminal connection?
+static bool uart = true;
+
 // clang-format off
 cmd_t cmd_table[] = {
     {"cat",     cat_cmd,        "display a text file"},
@@ -102,10 +105,20 @@ void set_translate_crlf(bool enable) {
     stdio_set_translate_crlf(driver, enable);
 }
 
-// used by Vi
-void get_screen_xy(uint32_t* x, uint32_t* y) {
-    *x = term_cols;
-    *y = term_rows;
+bool bad_mount(bool need) {
+    if (mounted == need) {
+        return false;
+    }
+    sprintf(sh_message, "filesystem is %smounted", (need ? "not " : ""));
+    return true;
+}
+
+bool bad_name(void) {
+    if (sh_argc > 1) {
+        return false;
+    }
+    strcpy(sh_message, "missing file or directory name");
+    return true;
 }
 
 static void echo_key(char c) {
@@ -200,22 +213,6 @@ static void parse_sh_command(void) {
     sh_argv[sh_argc] = NULL;
 }
 
-bool bad_mount(bool need) {
-    if (mounted == need) {
-        return false;
-    }
-    sprintf(sh_message, "filesystem is %smounted", (need ? "not " : ""));
-    return true;
-}
-
-bool bad_name(void) {
-    if (sh_argc > 1) {
-        return false;
-    }
-    strcpy(sh_message, "missing file or directory name");
-    return true;
-}
-
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
 static uint8_t tests_cmd(void) {
     if (bad_mount(true)) {
@@ -297,22 +294,28 @@ static void print_sh_prompt(uint8_t previous_exit_status) {
     printf(VT_NORMAL);
 }
 
-// application entry point
-int main(void) {
+void init() {
     // initialize the pico SDK
     stdio_init_all();
-    bool uart = true;
+
+    uart = true;
 #if LIB_PICO_STDIO_USB
     while (!stdio_usb_connected()) {
         sleep_ms(1000);
     }
     uart = false;
 #endif
+
     ((int*)scb_hw->vtor)[3] = (int)HardFault_Handler;
+
     getchar_timeout_us(1000);
-    bool detected = screen_size();
-    printf(VT_CLEAR);
+
     fflush(stdout);
+    printf(VT_CLEAR);
+}
+
+void print_startup_banner() {
+    bool detected = screen_size();
     printf("\n" VT_BOLD "Pico Shell" VT_NORMAL " - Copyright (c) 1883 Thomas Edison\n"
            "This program comes with ABSOLUTELY NO WARRANTY.\n"
            "This is free software, and you are welcome to redistribute it\n"
@@ -342,7 +345,9 @@ int main(void) {
                "\nsequences. The editor will likely not work at all!");
         fflush(stdout);
     }
+}
 
+void disk_init() {
     if (fs_load() != LFS_ERR_OK) {
         printf("Can't access filesystem device! Aborting.\n");
         exit(-1);
@@ -377,6 +382,9 @@ int main(void) {
         printf("file system automatically mounted\n");
         mounted = true;
     }
+}
+
+void sh_repl() {
     uint8_t last_ret = 0;
     while (run) {
         print_sh_prompt(last_ret);
@@ -408,6 +416,15 @@ int main(void) {
             last_ret = help_cmd();
         }
     }
+}
+
+int main(void) {
+    init();
+    print_startup_banner();
+    disk_init();
+
+    sh_repl();
+
     fs_unload();
     printf("\ndone\n");
     sleep_ms(1000);

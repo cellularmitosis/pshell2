@@ -8,6 +8,9 @@
  *
  */
 
+// pshell integration
+#include "../pshell/main.h"
+
 // clib functions
 #include <fcntl.h>
 #include <limits.h>
@@ -63,9 +66,7 @@
 #define ADJ_BITS 5
 #define ADJ_MASK ((1 << ADJ_BITS) - 1)
 
-extern char* full_path(char* name);                  // expand file name to full path name
 extern int cc_printf(void* stk, int wrds, int prnt); // shim for printf and sprintf
-extern void get_screen_xy(int* x, int* y);           // retrieve screem dimensions
 extern void cc_exit(int rc);                         // C exit function
 extern char __StackLimit[TEXT_BYTES + DATA_BYTES];   // start of code segment
 
@@ -404,15 +405,11 @@ static int wrap_rename(char* old, char* new) {
 }
 
 static int wrap_screen_height(void) {
-    int x, y;
-    get_screen_xy(&x, &y);
-    return y;
+    return term_rows;
 }
 
 static int wrap_screen_width(void) {
-    int x, y;
-    get_screen_xy(&x, &y);
-    return x;
+    return term_cols;
 }
 
 static void wrap_wfi(void) { __wfi(); };
@@ -4352,8 +4349,8 @@ static void show_defines(const struct define_grp* grp) {
         return;
     }
     printf("Predefined symbols:\n\n");
-    int x, y;
-    get_screen_xy(&x, &y);
+    int x = term_cols;
+    int y = term_rows;
     int pos = 0;
     for (; grp->name; grp++) {
         if (pos == 0) {
@@ -4376,8 +4373,8 @@ static void show_defines(const struct define_grp* grp) {
 
 static void show_externals(int i) {
     printf("Functions:\n\n");
-    int x, y;
-    get_screen_xy(&x, &y);
+    int x = term_cols;
+    int y = term_rows;
     int pos = 0;
     for (int j = 0; j < numof(externs); j++) {
         if (externs[j].grp == includes[i].grp) {

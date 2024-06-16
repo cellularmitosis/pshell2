@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../pshell/main.h"
+
 #include "hardware/timer.h"
 
 #include "pico/stdio.h"
@@ -3705,13 +3707,12 @@ static void* xmalloc_open_read_close(const char* filename) {
     return buf;
 }
 
-extern void get_screen_xy(uint32_t* x, uint32_t* y);
-
 int vi(int ac, char* argv[]) {
     extern char __viudata_start__, __viudata_end__;
     memset(&__viudata_start__, 0, &__viudata_end__ - &__viudata_start__);
     last_modified_count = -1;
-    get_screen_xy(&columns, &rows);
+    columns = term_cols;
+    rows = term_rows;
     argc = ac;
     last_modified_count = -1;
     /* "" but has space for 2 chars: */

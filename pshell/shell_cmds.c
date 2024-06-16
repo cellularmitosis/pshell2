@@ -67,11 +67,16 @@ uint8_t quit_cmd(void) {
 }
 
 uint8_t version_cmd(void) {
-    printf("\nPico Shell " PSHELL_GIT_TAG ", LittleFS v%d.%d, Vi " VI_VER ", SDK v%d.%d.%d\n",
-           LFS_VERSION >> 16, LFS_VERSION & 0xffff, PICO_SDK_VERSION_MAJOR, PICO_SDK_VERSION_MINOR,
-           PICO_SDK_VERSION_REVISION);
+    printf(
+        "\nPico Shell " PSHELL_VERSION
+        ", LittleFS v%d.%d"
+        ", Vi " VI_VER
+        ", SDK v%d.%d.%d\n",
+        LFS_VERSION >> 16, LFS_VERSION & 0xffff,
+        PICO_SDK_VERSION_MAJOR, PICO_SDK_VERSION_MINOR, PICO_SDK_VERSION_REVISION
+    );
 #if !defined(NDEBUG)
-    printf("gcc %s\n", __VERSION__);
+    printf("Compiled with: %s\n", __VERSION__);
 #endif
     return 0;
 }
