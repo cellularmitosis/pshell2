@@ -3,14 +3,42 @@ This is a fork of https://github.com/lurk101/pshell which has been archived.
 Total noob guide:
 * Download a copy of the SDK from https://github.com/raspberrypi/pico-sdk
 * Export the SDK file path as `PICO_SDK_PATH` from your shell rc file
-* Run `./build.sh`
-* Drag `build/pshell_usb.uf2` into your Pi Pico (on macOS, at `/Volumes/RPI-RP2`)
+* Run `make`
 
 Once you have that up and running:
 * `vi hello.c`
 * Paste in a copy of [c-examples/hello.c](c-examples/hello.c), save and exit vi
 ** do this with `ESC :wq`, but you may have to pause slightly after `ESC`
 * `cc hello.c`
+
+## cc
+
+```
+Usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]
+          [-o exename] filename.c
+  -s      display disassembly and quit.
+  -o      name of executable output file.
+  -u      treat char type as unsigned.
+  -n      turn off peep-hole optimization
+  -Dsymbol[=integer]
+          define symbol for limited pre-processor.
+  -h      show compiler help and list libraries.
+  -h lib  show available functions and symbols from <lib>.
+  filename.c
+          C source file name.
+
+Examples:
+  cc hello.c
+  cc -DFOO -DBAR=42 hello.c
+  cc -h
+  cc -h math
+
+Libraries:
+  stdio, stdlib, string, math, sync, time, gpio, pwm, adc
+  clocks, i2c, spi, irq
+```
+
+----
 
 Original README follows:
 ----

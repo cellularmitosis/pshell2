@@ -4402,7 +4402,7 @@ static void show_externals(int i) {
 
 static void help(char* lib) {
     if (!lib) {
-        printf("usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]\n"
+        printf("Usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]\n"
                "          [-o exename] filename.c\n"
                "  -s      display disassembly and quit.\n"
                "  -o      name of executable output file.\n"
