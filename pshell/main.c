@@ -321,6 +321,9 @@ cmd_t cmd_table[] = {
     {"tests",   tests_cmd,      "run all tests"},
 #endif
     {"unmount", unmount_cmd,    "unmount the filesystem"},
+#if LIB_PICO_STDIO_USB
+    {"usbboot", usbboot_cmd,    "reboot into the USB bootloader"},
+#endif
 	{"version", version_cmd,    "display pico shell's version"},
     {"vi",      vi_cmd,         "edit file(s) with vi"},
     {"xget",    xget_cmd,       "get a file (xmodem)"},

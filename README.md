@@ -3,9 +3,11 @@ This is a fork of https://github.com/lurk101/pshell which has been archived.
 Total noob guide:
 * Download a copy of the SDK from https://github.com/raspberrypi/pico-sdk
 * Export the SDK file path as `PICO_SDK_PATH` from your shell rc file
-* Run `make`
+* Run `make`, which will build and install pshell_usb.uf2 onto the pico
+* Connect to pshell
+  * On a Mac, e.g. `minicom -D /dev/tty.usbmodem14101`
 
-Once you have that up and running:
+Once you are connected:
 * `vi hello.c`
 * Paste in a copy of [c-examples/hello.c](c-examples/hello.c), save and exit vi
 ** do this with `ESC :wq`, but you may have to pause slightly after `ESC`
