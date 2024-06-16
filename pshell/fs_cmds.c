@@ -56,24 +56,27 @@ static void disk_space(uint64_t n, char* buf) {
     sprintf(buf, "%.1f%s", d, *sfx);
 }
 
-uint8_t status_cmd(void) {
+uint8_t df_cmd(void) {
     if (bad_mount(true)) {
         return 1;
     }
     struct fs_fsstat_t stat;
     fs_fsstat(&stat);
     const char percent = 37;
-    char total_size[32], used_size[32];
+    char total_size[32];
     disk_space((int64_t)stat.block_count * stat.block_size, total_size);
+    char used_size[32];
     disk_space((int64_t)stat.blocks_used * stat.block_size, used_size);
 #ifndef NDEBUG
-    printf("\ntext size 0x%x (%d), bss size 0x%x (%d)", stat.text_size, stat.text_size,
+    printf("text size 0x%x (%d), bss size 0x%x (%d)\n", stat.text_size, stat.text_size,
            stat.bss_size, stat.bss_size);
 #endif
     sprintf(sh_message,
-            "\ntotal blocks %d, block size %d, used %s out of %s, %1.1f%c "
-            "used.\n",
-            (int)stat.block_count, (int)stat.block_size, used_size, total_size,
-            stat.blocks_used * 100.0 / stat.block_count, percent);
+            "block size: %d\n"
+            "total blocks: %d (%s)\n"
+            "used blocks: %d (%s, %1.1f%c)\n",
+            (int)stat.block_size,
+            (int)stat.block_count, total_size,
+            (int)stat.blocks_used, used_size, stat.blocks_used * 100.0 / stat.block_count, percent);
     return 0;
 }

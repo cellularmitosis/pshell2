@@ -592,6 +592,7 @@ cmd_t cmd_table[] = {
     {"cd",      cd_cmd,         "change directory"},
     {"clear",   clear_cmd,      "clear the screen"},
     {"cp",      cp_cmd,         "copy a file"},
+    {"df",      df_cmd,         "display the filesystem usage"},
     {"format",  format_cmd,     "format the filesystem"},
     {"ls",      ls_cmd,         "list a directory, -a to show hidden files"},
     {"mkdir",   mkdir_cmd,      "create a directory"},
@@ -601,7 +602,6 @@ cmd_t cmd_table[] = {
     {"reboot",  reboot_cmd,     "restart the system"},
     {"resize",  resize_cmd,     "establish screen dimensions"},
     {"rm",      rm_cmd,         "remove a file or directory. -r for recursive"},
-    {"status",  status_cmd,     "display the filesystem status"},
     {"tar",     tar_cmd,        "manage tar archives"},
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)
     {"tests",   tests_cmd,      "run all tests"},
@@ -688,11 +688,11 @@ static bool run_as_cmd(const char* dir) {
 
 // Print the shell prompt, including any non-zero exit status of the previous command.
 static void print_prompt(uint8_t previous_exit_status) {
-        printf("\n" VT_BOLD "%s$ ", full_path(""));
-        if (previous_exit_status != 0) {
-            printf("[%i] ", previous_exit_status);
-        }
-        printf(VT_NORMAL);
+    printf("\n" VT_BOLD "%s$ ", full_path(""));
+    if (previous_exit_status != 0) {
+        printf("[%i] ", previous_exit_status);
+    }
+    printf(VT_NORMAL);
 }
 
 // application entry point

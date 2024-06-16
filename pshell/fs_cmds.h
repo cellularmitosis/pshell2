@@ -6,6 +6,6 @@
 uint8_t format_cmd(void);
 uint8_t mount_cmd(void);
 uint8_t unmount_cmd(void);
-uint8_t status_cmd(void);
+uint8_t df_cmd(void);
 
 #endif
