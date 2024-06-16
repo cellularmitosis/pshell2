@@ -2,9 +2,9 @@ This is a fork of https://github.com/lurk101/pshell which has been archived.
 
 Total noob guide:
 * Download a copy of the SDK from https://github.com/raspberrypi/pico-sdk
-* Export the SDK file path as PICO_SDK_PATH from your shell rc file
-* Run ./build.sh
-* Drag build/pshell_usb.uf2 into your Pi Pico.
+* Export the SDK file path as `PICO_SDK_PATH` from your shell rc file
+* Run `./build.sh`
+* Drag `build/pshell_usb.uf2` into your Pi Pico (on macOS, at `/Volumes/RPI-RP2`)
 
 Once you have that up and running:
 * `vi hello.c`

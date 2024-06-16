@@ -9,7 +9,12 @@ if test -z "$PICO_SDK_PATH" ; then
     exit 1
 fi
 
+if ! test -e littlefs/module/lfs.c ; then
+    echo "Fetching git submodules."
+    git submodule update --init
+fi
+
 mkdir -p build
 cd build
 cmake ..
-make
+make -j4

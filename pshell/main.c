@@ -109,15 +109,19 @@ static void parse_cmd(void) {
     cp = dgreadln(cmd_buffer, mounted, prompt);
     bool not_last = true;
     for (argc = 0; not_last && (argc < MAX_ARGS); argc++) {
-        while ((*cp == ' ') || (*cp == ',') || (*cp == '='))
+        while (*cp == ' ') {
             cp++; // skip blanks
-        if ((*cp == '\r') || (*cp == '\n'))
+        }
+        if ((*cp == '\r') || (*cp == '\n')) {
             break;
+        }
         argv[argc] = cp; // start of string
-        while ((*cp != ' ') && (*cp != ',') && (*cp != '=') && (*cp != '\r') && (*cp != '\n'))
+        while ((*cp != ' ') && (*cp != '\r') && (*cp != '\n')) {
             cp++; // skip non blank
-        if ((*cp == '\r') || (*cp == '\n'))
+        }
+        if ((*cp == '\r') || (*cp == '\n')) {
             not_last = false;
+        }
         *cp++ = 0; // terminate string
     }
     argv[argc] = NULL;
@@ -883,7 +887,7 @@ int main(void) {
     printf("\n" VT_BOLD "Pico Shell" VT_NORMAL " - Copyright " COPYRIGHT " 1883 Thomas Edison\n"
            "This program comes with ABSOLUTELY NO WARRANTY.\n"
            "This is free software, and you are welcome to redistribute it\n"
-           "under certain conditions. See LICENSE file for details.\n");
+           "under certain conditions. See LICENSE.md file for details.\n");
     char buf[16];
 #if defined(VGABOARD_SD_CLK_PIN)
     strcpy(buf, "sd card");
@@ -924,17 +928,18 @@ int main(void) {
         if (c != '\r')
             echo_key('\r');
         putchar('\n');
-        if (c == 'y' || c == 'y')
-            if (fs_format() != LFS_ERR_OK)
+        if (c == 'y' || c == 'y') {
+            if (fs_format() != LFS_ERR_OK) {
                 printf("Error formating file system!\n");
-            else {
-                if (fs_mount() != LFS_ERR_OK)
+            } else {
+                if (fs_mount() != LFS_ERR_OK) {
                     printf("Error formating file system!\n");
-                else {
+                } else {
                     printf("file system formatted and mounted\n");
                     mounted = true;
                 }
             }
+        }
     } else {
         printf("file system automatically mounted\n");
         mounted = true;
@@ -962,8 +967,9 @@ int main(void) {
                 if (!run_as_cmd("") && !run_as_cmd("/bin/"))
                     printf("\nunknown command '%s'. hit ENTER for help\n", argv[0]);
             }
-        } else
+        } else {
             help();
+        }
     }
     fs_unload();
     printf("\ndone\n");

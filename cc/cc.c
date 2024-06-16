@@ -214,8 +214,8 @@ struct ident_s {
 };
 
 // symbol table
-static struct ident_s *id UDATA, // currently parsed identifier
-    *sym_base UDATA;             // symbol table (simple list of identifiers)
+static struct ident_s* id UDATA; // currently parsed identifier
+static struct ident_s* sym_base UDATA; // symbol table (simple list of identifiers)
 
 // struct member list entry
 struct member_s {
@@ -764,7 +764,8 @@ static void next() {
             id = sym_base;
             for (id = sym_base; id; id = id->next) { // find one free slot in table
                 if (tk == id->hash &&                // if token is found (hash match), overwrite
-                    !memcmp(id->name, pp, p - pp)) {
+                    !memcmp(id->name, pp, p - pp))
+                {
                     tk = id->tk;
                     return;
                 }
@@ -843,8 +844,9 @@ static void next() {
                 i2 = id;
                 // anything before eol?
                 tp = p;
-                while ((*tp == ' ') || (*tp == '\t'))
+                while ((*tp == ' ') || (*tp == '\t')) {
                     ++tp;
+                }
                 if ((*tp != 0) && (*tp != '\n') && memcmp(tp, "//", 2) && memcmp(tp, "/*", 2)) {
                     // id->class = Glo;
                     indef = 1; // prevent recursive loop
@@ -4070,7 +4072,7 @@ static int x_sprintf(int etype) {
 static void show_defines(const struct define_grp* grp) {
     if (grp->name == 0)
         return;
-    printf("\nPredefined symbols:\n\n");
+    printf("Predefined symbols:\n\n");
     int x, y;
     get_screen_xy(&x, &y);
     int pos = 0;
@@ -4093,7 +4095,7 @@ static void show_defines(const struct define_grp* grp) {
 }
 
 static void show_externals(int i) {
-    printf("\nFunctions:\n\n");
+    printf("Functions:\n\n");
     int x, y;
     get_screen_xy(&x, &y);
     int pos = 0;
@@ -4118,25 +4120,34 @@ static void show_externals(int i) {
 
 static void help(char* lib) {
     if (!lib) {
-        printf("\n"
-               "usage: cc [-s] [-u] [-n] [-h [lib]] [-D [symbol[ = value]]]\n"
-               "          [-o filename] filename\n"
-               "    -s      display disassembly and quit.\n"
-               "    -o      name of executable output file.\n"
-               "    -u      treat char type as unsigned.\n"
-               "    -n      turn off peep-hole optimization\n"
-               "    -D symbol [= value]\n"
-               "            define symbol for limited pre-processor, can repeat.\n"
-               "    -h      Compiler help. lib lists externals.\n"
-               "    filename\n"
-               "            C source file name.\n"
-               "Libraries:\n"
-               "    %s",
-               includes[0]);
+        printf(
+            "usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]\n"
+            "          [-o exename] filename.c\n"
+            "  -s      display disassembly and quit.\n"
+            "  -o      name of executable output file.\n"
+            "  -u      treat char type as unsigned.\n"
+            "  -n      turn off peep-hole optimization\n"
+            "  -Dsymbol[=integer]\n"
+            "          define symbol for limited pre-processor.\n"
+            "  -h      show compiler help and list libraries.\n"
+            "  -h lib  show available functions and symbols from <lib>.\n"
+            "  filename.c\n"
+            "          C source file name.\n"
+            "\n"
+            "Examples:\n"
+            "  cc hello.c\n"
+            "  cc -DFOO -DBAR=42 hello.c\n"
+            "  cc -h\n"
+            "  cc -h math\n"
+            "\n"
+            "Libraries:\n"
+            "  %s",
+            includes[0]
+        );
         for (int i = 1; includes[i].name; i++) {
             printf(", %s", includes[i].name);
             if ((i % 8) == 0 && includes[i + 1].name)
-                printf("\n    %s", includes[++i].name);
+                printf("\n  %s", includes[++i].name);
         }
         printf("\n");
         return;
@@ -4144,6 +4155,7 @@ static void help(char* lib) {
     for (int i = 0; includes[i].name; i++)
         if (!strcmp(lib, includes[i].name)) {
             show_externals(i);
+            printf("\n");
             if (includes[i].grp)
                 show_defines(includes[i].grp);
             return;
@@ -4267,15 +4279,16 @@ int cc(int mode, int argc, char** argv) {
                     next();
                     expr(Cond);
                     if (ast_Tk(n) != Num)
-                        fatal("bad -D initializer");
+                        fatal("bad -D initializer: must be an integer");
                     i = Num_entry(n).val;
                     n += Num_words;
                 }
                 dd->class = Num;
                 dd->type = INT;
                 dd->val = i;
-            } else
+            } else {
                 argc = 0; // bad compiler option. Force exit.
+            }
             --argc;
             ++argv;
         }
@@ -4313,8 +4326,6 @@ int cc(int mode, int argc, char** argv) {
         // make a copy of the full path and append .c if necessary
         char* fn = cc_malloc(strlen(full_path(*argv)) + 3, 1);
         strcpy(fn, full_path(*argv));
-        if (strrchr(fn, '.') == NULL)
-            strcat(fn, ".c");
         // allocate a file descriptor and open the input file
         fd = cc_malloc(sizeof(lfs_file_t), 1);
         if (fs_file_open(fd, fn, LFS_O_RDONLY) < LFS_ERR_OK) {
@@ -4431,8 +4442,9 @@ int cc(int mode, int argc, char** argv) {
         }
         if (src_opt)
             goto done;
+
     } else { // loader mode
-             // output file name is not optional
+        // output file name is not optional
         if (argc < 1)
             fatal("specify executable file name");
         ofn = argv[0];

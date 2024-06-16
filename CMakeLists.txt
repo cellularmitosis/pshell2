@@ -42,9 +42,8 @@ else()
   add_subdirectory(flashio)
 endif()
 
-
 add_executable(${PSHELL}
-    main.c
+    pshell/main.c
 )
 
 target_compile_definitions(${PSHELL} PUBLIC
