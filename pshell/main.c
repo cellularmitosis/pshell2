@@ -6,6 +6,8 @@
  * won't be written for another century.
  */
 
+#include "main.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -22,7 +24,6 @@
 #include "cc.h"
 #include "io.h"
 #include "readln.h"
-#include "tar.h"
 #include "vi.h"
 #include "xmodem.h"
 #include "ymodem.h"
@@ -30,10 +31,10 @@
 #include "tests.h"
 #endif
 
+#include "tar_cmd.h"
+
 // #define COPYRIGHT "\u00a9" // for UTF8
 #define COPYRIGHT "(c)" // for ASCII
-
-#define MAX_ARGS 16
 
 #define VT_ESC "\033"
 #define VT_CLEAR VT_ESC "[H" VT_ESC "[J"
@@ -41,14 +42,18 @@
 #define VT_BOLD VT_ESC "[1m"
 #define VT_NORMAL VT_ESC "[m"
 
+#define MAX_ARGS 16
+int argc;
+char* argv[MAX_ARGS + 1];
+
 typedef char buf_t[128];
 
 static uint32_t screen_x = 80, screen_y = 24;
 static lfs_file_t file;
 static buf_t cmd_buffer, path, curdir = "/";
 buf_t result;
-static int argc;
-static char* argv[MAX_ARGS + 1];
+int argc;
+char* argv[MAX_ARGS + 1];
 static bool mounted = false, run = true;
 
 static void set_translate_crlf(bool enable) {
@@ -141,7 +146,7 @@ static int xmodem_rx_cb(uint8_t* buf, uint32_t len) {
 
 static int xmodem_tx_cb(uint8_t* buf, uint32_t len) { return fs_file_read(&file, buf, len); }
 
-static bool check_mount(bool need) {
+bool check_mount(bool need) {
     if (mounted == need) {
         return false;
     }
@@ -149,7 +154,7 @@ static bool check_mount(bool need) {
     return true;
 }
 
-static bool check_name(void) {
+bool check_name(void) {
     if (argc > 1) {
         return false;
     }
@@ -730,15 +735,6 @@ static uint8_t cc_cmd(void) {
     } else {
         return 0;
     }
-}
-
-static uint8_t tar_cmd(void) {
-    if (check_mount(true)) {
-        return 1;
-    }
-    // TODO: make tar return an exit status.
-    tar(argc, argv);
-    return 0;
 }
 
 #if !defined(NDEBUG) || defined(PSHELL_TESTS)

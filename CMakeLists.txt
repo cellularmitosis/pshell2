@@ -36,6 +36,7 @@ add_subdirectory(vi)
 add_subdirectory(cc)
 add_subdirectory(misc)
 add_subdirectory(xymodem)
+add_subdirectory(tar)
 if ("${PICO_BOARD}" STREQUAL "vgaboard")
   add_subdirectory(sdio)
 else()
@@ -43,6 +44,7 @@ else()
 endif()
 
 add_executable(${PSHELL}
+    pshell/tar_cmd.c
     pshell/main.c
 )
 
@@ -71,11 +73,12 @@ pico_set_program_name(${PSHELL} "pshell")
 pico_set_program_version(${PSHELL} "${PSHELL_GIT_TAG}")
 
 target_link_libraries(${PSHELL} PUBLIC
-    littlefs disassembler io vi cc misc xymodem
+    littlefs disassembler io vi cc tar misc xymodem
     pico_stdlib pico_rand
     hardware_flash hardware_sync hardware_watchdog hardware_timer hardware_gpio
     hardware_pwm hardware_adc hardware_clocks hardware_uart hardware_i2c
-    hardware_spi hardware_irq hardware_dma)
+    hardware_spi hardware_irq hardware_dma
+)
 
 pico_add_extra_outputs(${PSHELL})
 
