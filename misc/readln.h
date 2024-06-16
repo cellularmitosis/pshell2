@@ -1,7 +1,7 @@
 #ifndef _DGREADLN_H
 #define _DGREADLN_H
 
-typedef void (*cmd_func_t)(void);
+typedef uint8_t (*cmd_func_t)(void);
 
 typedef struct {
     const char* name;
