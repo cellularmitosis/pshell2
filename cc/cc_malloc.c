@@ -5,8 +5,7 @@
 #include <pico/stdlib.h>
 
 #include "cc_malloc.h"
-
-#define UDATA __attribute__((section(".ccudata")))
+#include "cc_internals.h"
 
 __attribute__((__noreturn__)) void run_fatal(const char* fmt, ...);
 

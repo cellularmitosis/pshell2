@@ -8,8 +8,11 @@
  *
  */
 
+#include "cc.h"
+
 // pshell integration
 #include "../pshell/main.h"
+#include "../pshell/terminal.h"
 
 // clib functions
 #include <fcntl.h>
@@ -37,9 +40,11 @@
 
 // disassembler, compiler, and file system functions
 #include "armdisasm.h"
-#include "cc.h"
-#include "cc_malloc.h"
 #include "io.h"
+
+#include "cc_internals.h"
+#include "cc_malloc.h"
+#include "cc_wraps.h"
 
 // for compiler debug only,
 // limited and not for normal use
@@ -58,44 +63,8 @@
 
 #define CTLC 3 // control C ascii character
 
-// VT100 escape sequences
-#define VT_BOLD "\033[1m"
-#define VT_NORMAL "\033[m"
-
-// Number of bits for parameter count
-#define ADJ_BITS 5
-#define ADJ_MASK ((1 << ADJ_BITS) - 1)
-
-extern int cc_printf(void* stk, int wrds, int prnt); // shim for printf and sprintf
 extern void cc_exit(int rc);                         // C exit function
 extern char __StackLimit[TEXT_BYTES + DATA_BYTES];   // start of code segment
-
-// accellerated SDK floating point functions
-extern void __wrap___aeabi_idiv();
-extern void __wrap___aeabi_i2f();
-extern void __wrap___aeabi_f2iz();
-extern void __wrap___aeabi_fadd();
-extern void __wrap___aeabi_fsub();
-extern void __wrap___aeabi_fmul();
-extern void __wrap___aeabi_fdiv();
-extern void __wrap___aeabi_fcmple();
-extern void __wrap___aeabi_fcmpgt();
-extern void __wrap___aeabi_fcmplt();
-extern void __wrap___aeabi_fcmpge();
-
-// accellerate SDK trig functions
-extern void __wrap_sinf();
-extern void __wrap_cosf();
-extern void __wrap_tanf();
-extern void __wrap_asinf();
-extern void __wrap_acosf();
-extern void __wrap_atanf();
-extern void __wrap_sinhf();
-extern void __wrap_coshf();
-extern void __wrap_tanhf();
-extern void __wrap_asinhf();
-extern void __wrap_acoshf();
-extern void __wrap_atanhf();
 
 enum {
     aeabi_idiv = 1,
@@ -123,7 +92,8 @@ static void (*fops[])() = { //
     __wrap___aeabi_fcmple,
     __wrap___aeabi_fcmpgt,
     __wrap___aeabi_fcmplt,
-    __wrap___aeabi_fcmpge};
+    __wrap___aeabi_fcmpge
+};
 
 // patch list entry
 struct patch_s {
@@ -229,6 +199,8 @@ struct member_s {
 
 static struct member_s** members UDATA; // array (indexed by type) of struct member lists
 
+struct file_handle* file_list UDATA; // file list root
+
 // tokens and classes (operators last and in precedence order)
 // ( >= 128 so not to collide with ASCII-valued tokens)
 #include "cc_tokns.h"
@@ -253,11 +225,8 @@ struct define_grp {
 
 static jmp_buf done_jmp UDATA; // fatal error jump address
 
-// fatal erro message and exit
-#define fatal(fmt, ...) fatal_func(__FUNCTION__, __LINE__, fmt, ##__VA_ARGS__)
-
-static __attribute__((__noreturn__)) void fatal_func(const char* func, int lne, const char* fmt,
-                                                     ...) {
+__attribute__((__noreturn__))
+void fatal_func(const char* func, int lne, const char* fmt, ...) {
     printf("\n");
 #ifndef NDEBUG
     printf("error in compiler function %s at line %d\n", func, lne);
@@ -279,7 +248,8 @@ static __attribute__((__noreturn__)) void fatal_func(const char* func, int lne, 
     longjmp(done_jmp, 1); // bail out
 }
 
-__attribute__((__noreturn__)) void run_fatal(const char* fmt, ...) {
+__attribute__((__noreturn__))
+void run_fatal(const char* fmt, ...) {
     printf("\n" VT_BOLD "run time error : " VT_NORMAL);
     va_list ap;
     va_start(ap, fmt);
@@ -288,135 +258,6 @@ __attribute__((__noreturn__)) void run_fatal(const char* fmt, ...) {
     printf("\n");
     longjmp(done_jmp, 1); // bail out
 }
-
-// user malloc shim
-static void* wrap_malloc(int len) { return cc_malloc(len, 0); };
-static void* wrap_calloc(int nmemb, int siz) { return cc_malloc(nmemb * siz, 1); };
-
-// file control block
-static struct file_handle {
-    struct file_handle* next; // list link
-    bool is_dir;              // bool, is a directory file
-    union {
-        lfs_file_t file; // LFS file control block
-        lfs_dir_t dir;   // LFS directory control block
-    } u;
-}* file_list UDATA; // file list root
-
-// user function shims
-static int wrap_open(char* name, int mode) {
-    struct file_handle* h = cc_malloc(sizeof(struct file_handle), 1);
-    h->is_dir = false;
-    int lfs_mode = (mode & 0xf) + 1;
-    if (mode & O_CREAT) {
-        lfs_mode |= LFS_O_CREAT;
-    }
-    if (mode & O_EXCL) {
-        lfs_mode |= LFS_O_EXCL;
-    }
-    if (mode & O_TRUNC) {
-        lfs_mode |= LFS_O_TRUNC;
-    }
-    if (mode & O_APPEND) {
-        lfs_mode |= LFS_O_APPEND;
-    }
-    if (fs_file_open(&h->u.file, full_path(name), lfs_mode) < LFS_ERR_OK) {
-        cc_free(h);
-        return 0;
-    }
-    h->next = file_list;
-    file_list = h;
-    return (int)h;
-}
-
-static int wrap_opendir(char* name) {
-    struct file_handle* h = cc_malloc(sizeof(struct file_handle), 1);
-    h->is_dir = true;
-    if (fs_dir_open(&h->u.dir, full_path(name)) < LFS_ERR_OK) {
-        cc_free(h);
-        return 0;
-    }
-    h->next = file_list;
-    file_list = h;
-    return (int)h;
-}
-
-static void wrap_close(int handle) {
-    struct file_handle* last_h = (void*)&file_list;
-    struct file_handle* h = file_list;
-    while (h) {
-        if (h == (struct file_handle*)handle) {
-            last_h->next = h->next;
-            if (h->is_dir) {
-                fs_dir_close(&h->u.dir);
-            } else {
-                fs_file_close(&h->u.file);
-            }
-            cc_free(h);
-            return;
-        }
-        last_h = h;
-        h = h->next;
-    }
-    run_fatal("closing unopened file!");
-}
-
-static int wrap_read(int handle, void* buf, int len) {
-    struct file_handle* h = (struct file_handle*)handle;
-    if (h->is_dir) {
-        fatal("use readdir to read from directories");
-    }
-    return fs_file_read(&h->u.file, buf, len);
-}
-
-static int wrap_readdir(int handle, void* buf) {
-    struct file_handle* h = (struct file_handle*)handle;
-    if (!h->is_dir) {
-        fatal("use read to read from files");
-    }
-    return fs_dir_read(&h->u.dir, buf);
-}
-
-static int wrap_write(int handle, void* buf, int len) {
-    struct file_handle* h = (struct file_handle*)handle;
-    return fs_file_write(&h->u.file, buf, len);
-}
-
-static int wrap_lseek(int handle, int pos, int set) {
-    struct file_handle* h = (struct file_handle*)handle;
-    return fs_file_seek(&h->u.file, pos, set);
-};
-
-static int wrap_popcount(int n) { return __builtin_popcount(n); };
-
-static int wrap_printf(void) {};
-static int wrap_sprintf(void) {};
-
-static int wrap_remove(char* name) { return fs_remove(full_path(name)); };
-
-static int wrap_rename(char* old, char* new) {
-    char* fp = full_path(old);
-    char* fpa = cc_malloc(strlen(fp) + 1, 1);
-    strcpy(fpa, fp);
-    char* fpb = full_path(new);
-    int r = fs_rename(fpa, fpb);
-    cc_free(fpa);
-    return r;
-}
-
-static int wrap_screen_height(void) {
-    return term_rows;
-}
-
-static int wrap_screen_width(void) {
-    return term_cols;
-}
-
-static void wrap_wfi(void) { __wfi(); };
-
-static int x_printf(int etype);
-static int x_sprintf(int etype);
-static char* x_strdup(char* s);
 
 // external function table entry
 struct externs_s {
@@ -4288,58 +4129,6 @@ static int f_as_i(float f) {
     } u;
     u.f = f;
     return u.i;
-}
-
-// printf/sprintf support
-
-static int common_vfunc(int etype, int prntf, int* sp) {
-    int stack[ADJ_MASK + ADJ_MASK + 2];
-    int stkp = 0;
-    int n_parms = (etype & ADJ_MASK);
-    etype >>= 10;
-    for (int j = n_parms - 1; j >= 0; j--) {
-        if ((etype & (1 << j)) == 0) {
-            stack[stkp++] = sp[j];
-        } else {
-            if (stkp & 1) {
-                stack[stkp++] = 0;
-            }
-            union {
-                double d;
-                int ii[2];
-            } u;
-            u.d = *((float*)&sp[j]);
-            stack[stkp++] = u.ii[0];
-            stack[stkp++] = u.ii[1];
-        }
-    }
-    int r = cc_printf(stack, stkp, prntf);
-    if (prntf) {
-        fflush(stdout);
-    }
-    return r;
-}
-
-// More shims
-static char* x_strdup(char* s) {
-    int l = strlen(s);
-    char* c = cc_malloc(l + 1, 0);
-    strcpy(c, s);
-    return c;
-}
-
-static int x_printf(int etype) {
-    int* sp;
-    asm volatile("mov %0, sp \n" : "=r"(sp));
-    sp += 2;
-    common_vfunc(etype, 1, sp);
-}
-
-static int x_sprintf(int etype) {
-    int* sp;
-    asm volatile("mov %0, sp \n" : "=r"(sp));
-    sp += 2;
-    common_vfunc(etype, 0, sp);
 }
 
 // Help display
