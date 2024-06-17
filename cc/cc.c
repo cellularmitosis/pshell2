@@ -45,6 +45,7 @@
 #include "cc_internals.h"
 #include "cc_malloc.h"
 #include "cc_wraps.h"
+#include "cc_ast.h"
 
 // for compiler debug only,
 // limited and not for normal use
@@ -151,7 +152,7 @@ static int lineno UDATA;              // current line number
 static int src_opt UDATA;             // print source and assembly flag
 static int nopeep_opt UDATA;          // turn off peep-hole optimization
 static int uchar_opt UDATA;           // use unsigned character variables
-static int* n UDATA;                  // current position in emitted abstract syntax tree
+int* n UDATA;                         // current position in emitted abstract syntax tree
                                       // With an AST, the compiler is not limited to generate
                                       // code on the fly with parsing.
                                       // This capability allows function parameter code to be
@@ -159,7 +160,7 @@ static int* n UDATA;                  // current position in emitted abstract sy
                                       // right-to-left order.
 static int ld UDATA;                  // local variable depth
 static int pplev UDATA, pplevt UDATA; // preprocessor conditional level
-static int* ast UDATA;                // abstract syntax tree
+int* ast UDATA;                       // abstract syntax tree
 static ARMSTATE state UDATA;          // disassembler state
 int exit_sp UDATA;                    // stack at entry to main
 static char* ofn UDATA;               // output file (executable) name
@@ -305,283 +306,6 @@ static int extern_search(char* name) // get cache index of external function
         }
     }
     return -1;
-}
-
-// Abstract syntax tree entry creation
-
-static void push_ast(int l) {
-    n -= l;
-    if (n < ast) {
-        fatal("AST overflow compiler error. Program too big");
-    }
-}
-
-typedef struct {
-    int tk;
-    int v1;
-} Double_entry_t;
-#define Double_entry(a) (*((Double_entry_t*)a))
-#define Double_words (sizeof(Double_entry_t) / sizeof(int))
-
-typedef struct {
-    int tk;
-    int next;
-    int addr;
-    int n_parms;
-    int parm_types;
-} Func_entry_t;
-#define Func_entry(a) (*((Func_entry_t*)a))
-#define Func_words (sizeof(Func_entry_t) / sizeof(int))
-
-static void ast_Func(int parm_types, int n_parms, int addr, int next, int tk) {
-    push_ast(Func_words);
-    Func_entry(n).parm_types = parm_types;
-    Func_entry(n).n_parms = n_parms;
-    Func_entry(n).addr = addr;
-    Func_entry(n).next = next;
-    Func_entry(n).tk = tk;
-}
-
-typedef struct {
-    int tk;
-    int cond;
-    int incr;
-    int body;
-    int init;
-} For_entry_t;
-#define For_entry(a) (*((For_entry_t*)a))
-#define For_words (sizeof(For_entry_t) / sizeof(int))
-
-static void ast_For(int init, int body, int incr, int cond) {
-    push_ast(For_words);
-    For_entry(n).init = init;
-    For_entry(n).body = body;
-    For_entry(n).incr = incr;
-    For_entry(n).cond = cond;
-    For_entry(n).tk = For;
-}
-
-typedef struct {
-    int tk;
-    int cond_part;
-    int if_part;
-    int else_part;
-} Cond_entry_t;
-#define Cond_entry(a) (*((Cond_entry_t*)a))
-#define Cond_words (sizeof(Cond_entry_t) / sizeof(int))
-
-static void ast_Cond(int else_part, int if_part, int cond_part) {
-    push_ast(Cond_words);
-    Cond_entry(n).else_part = else_part;
-    Cond_entry(n).if_part = if_part;
-    Cond_entry(n).cond_part = cond_part;
-    Cond_entry(n).tk = Cond;
-}
-
-typedef struct {
-    int tk;
-    int type;
-    int right_part;
-} Assign_entry_t;
-#define Assign_entry(a) (*((Assign_entry_t*)a))
-#define Assign_words (sizeof(Assign_entry_t) / sizeof(int))
-
-static void ast_Assign(int right_part, int type) {
-    push_ast(Assign_words);
-    Assign_entry(n).right_part = right_part;
-    Assign_entry(n).type = type;
-    Assign_entry(n).tk = Assign;
-}
-
-typedef struct {
-    int tk;
-    int body;
-    int cond;
-} While_entry_t;
-#define While_entry(a) (*((While_entry_t*)a))
-#define While_words (sizeof(While_entry_t) / sizeof(int))
-
-static void ast_While(int cond, int body, int tk) {
-    push_ast(While_words);
-    While_entry(n).cond = cond;
-    While_entry(n).body = body;
-    While_entry(n).tk = tk;
-}
-
-typedef struct {
-    int tk;
-    int cond;
-    int cas;
-} Switch_entry_t;
-#define Switch_entry(a) (*((Switch_entry_t*)a))
-#define Switch_words (sizeof(Switch_entry_t) / sizeof(int))
-
-static void ast_Switch(int cas, int cond) {
-    push_ast(Switch_words);
-    Switch_entry(n).cas = cas;
-    Switch_entry(n).cond = cond;
-    Switch_entry(n).tk = Switch;
-}
-
-typedef struct {
-    int tk;
-    int next;
-    int expr;
-} Case_entry_t;
-#define Case_entry(a) (*((Case_entry_t*)a))
-#define Case_words (sizeof(Case_entry_t) / sizeof(int))
-
-static void ast_Case(int expr, int next) {
-    push_ast(Case_words);
-    Case_entry(n).expr = expr;
-    Case_entry(n).next = next;
-    Case_entry(n).tk = Case;
-}
-
-typedef struct {
-    int tk;
-    int val;
-    int way;
-} CastF_entry_t;
-#define CastF_entry(a) (*((CastF_entry_t*)a))
-#define CastF_words (sizeof(CastF_entry_t) / sizeof(int))
-
-static void ast_CastF(int way, int val) {
-    push_ast(CastF_words);
-    CastF_entry(n).tk = CastF;
-    CastF_entry(n).val = val;
-    CastF_entry(n).way = way;
-}
-
-typedef struct {
-    int tk;
-    int val;
-} Enter_entry_t;
-#define Enter_entry(a) (*((Enter_entry_t*)a))
-#define Enter_words (sizeof(Enter_entry_t) / sizeof(int))
-
-static uint16_t* ast_Enter(int val) {
-    push_ast(Enter_words);
-    Enter_entry(n).tk = Enter;
-    Enter_entry(n).val = val;
-}
-
-// two word entries
-static void ast_Return(int v1) {
-    push_ast(Double_words);
-    Double_entry(n).tk = Return;
-    Double_entry(n).v1 = v1;
-}
-
-typedef struct {
-    int tk;
-    int oprnd;
-} Oper_entry_t;
-#define Oper_entry(a) (*((Oper_entry_t*)a))
-#define Oper_words (sizeof(Oper_entry_t) / sizeof(int))
-
-static void ast_Oper(int oprnd, int op) {
-    push_ast(Oper_words);
-    Oper_entry(n).tk = op;
-    Oper_entry(n).oprnd = oprnd;
-}
-
-typedef struct {
-    int tk;
-    int val;
-    int valH;
-} Num_entry_t;
-#define Num_entry(a) (*((Num_entry_t*)a))
-#define Num_words (sizeof(Num_entry_t) / sizeof(int))
-
-static void ast_Num(int val) {
-    push_ast(Num_words);
-    Num_entry(n).tk = Num;
-    Num_entry(n).val = val;
-    Num_entry(n).valH = 0;
-}
-
-static void ast_Label(int v1) {
-    push_ast(Double_words);
-    Double_entry(n).tk = Label;
-    Double_entry(n).v1 = v1;
-}
-
-static void ast_Goto(int v1) {
-    push_ast(Double_words);
-    Double_entry(n).tk = Goto;
-    Double_entry(n).v1 = v1;
-}
-
-static void ast_Default(int v1) {
-    push_ast(Double_words);
-    Double_entry(n).tk = Default;
-    Double_entry(n).v1 = v1;
-}
-
-static void ast_NumF(int v1) {
-    push_ast(Num_words);
-    Num_entry(n).tk = NumF;
-    Num_entry(n).val = v1;
-    Num_entry(n).valH = 0;
-}
-
-static void ast_Loc(int addr) {
-    push_ast(Double_words);
-    Double_entry(n).tk = Loc;
-    Double_entry(n).v1 = addr;
-}
-
-typedef struct {
-    int tk;
-    int typ;
-} Load_entry_t;
-#define Load_entry(a) (*((Load_entry_t*)a))
-#define Load_words (sizeof(Load_entry_t) / sizeof(int))
-
-static void ast_Load(int typ) {
-    push_ast(Load_words);
-    Load_entry(n).tk = Load;
-    Load_entry(n).typ = typ;
-}
-
-typedef struct {
-    int tk;
-    int* next;
-} Begin_entry_t;
-#define Begin_entry(a) (*((Begin_entry_t*)a))
-#define Begin_words (sizeof(Begin_entry_t) / sizeof(int))
-
-static void ast_Begin(int* next) {
-    push_ast(Begin_words);
-    Begin_entry(n).tk = '{';
-    Begin_entry(n).next = next;
-}
-
-// single word entry
-
-typedef struct {
-    int tk;
-} Single_entry_t;
-#define Single_entry(a) (*((Single_entry_t*)a))
-#define Single_words (sizeof(Single_entry_t) / sizeof(int))
-
-#define ast_Tk(a) (Single_entry(a).tk)
-
-static void ast_Single(int k) {
-    push_ast(Single_words);
-    Single_entry(n).tk = k;
-}
-
-typedef struct {
-    int tk;
-} End_entry_t;
-#define End_entry(a) (*((End_entry_t*)a))
-#define End_words (sizeof(End_entry_t) / sizeof(int))
-
-static void ast_End(void) {
-    push_ast(End_words);
-    End_entry(n).tk = ';';
 }
 
 static void expr(int lev);

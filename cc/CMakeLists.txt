@@ -4,5 +4,6 @@ target_sources(cc INTERFACE
     cc.c cc.h cc_extrns.h cc_tokns.h cc_ops.h cc_defs.h
     cc_malloc.c cc_malloc.h
     cc_wraps.c cc_wraps.h
+    cc_ast.c cc_ast.h
     cc_printf.S
 )

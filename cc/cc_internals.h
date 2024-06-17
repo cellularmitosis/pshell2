@@ -32,4 +32,12 @@ void fatal_func(const char* func, int lne, const char* fmt, ...);
 __attribute__((__noreturn__))
 void run_fatal(const char* fmt, ...);
 
+extern int* ast UDATA;                // abstract syntax tree
+extern int* n UDATA;                  // current position in emitted abstract syntax tree
+                                      // With an AST, the compiler is not limited to generate
+                                      // code on the fly with parsing.
+                                      // This capability allows function parameter code to be
+                                      // emitted and pushed on the stack in the proper
+                                      // right-to-left order.
+
 #endif

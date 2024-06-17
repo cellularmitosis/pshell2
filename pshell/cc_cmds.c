@@ -6,7 +6,7 @@ uint8_t cc_cmd(void) {
     if (bad_mount(true)) {
         return 1;
     }
-    if (!cc(0, sh_argc, sh_argv)) {
+    if (cc(0, sh_argc, sh_argv) != 0) {
         return 1;
     } else {
         return 0;
