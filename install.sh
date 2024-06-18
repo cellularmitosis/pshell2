@@ -17,4 +17,7 @@ if ! test -e /Volumes/RPI-RP2 ; then
     done
 fi
 
+if test -d /Volumes/RPI-RP2/pshell_usb.uf2 ; then
+    rm -rf /Volumes/RPI-RP2/pshell_usb.uf2
+fi
 cp -v build/pshell_usb.uf2 /Volumes/RPI-RP2/

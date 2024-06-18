@@ -15,6 +15,7 @@
 
 #include "pico/stdlib.h"
 #include "pico/sync.h"
+#include "pico/malloc.h"
 
 #include "cc.h"
 #include "io.h"
@@ -384,6 +385,33 @@ void disk_init() {
     }
 }
 
+// print a peak malloc usage after running each command:
+#define TRACE_MALLOC 0
+// note: this requires some changes to pico/malloc.c:
+/*
+size_t malloc_allocated_bytes = 0;
+size_t malloc_peak_bytes = 0;
+size_t malloc_allocation_count = 0;
+size_t malloc_peak_allocations = 0;
+void *WRAPPER_FUNC(malloc)(size_t size) {
+    malloc_allocation_count += 1;
+    if (malloc_allocation_count > malloc_peak_allocations) {
+        malloc_peak_allocations = malloc_peak_allocations;
+    }
+    malloc_allocated_bytes += size;
+    if (malloc_allocated_bytes > malloc_peak_bytes) {
+        malloc_peak_bytes = malloc_allocated_bytes;
+    }
+*/
+// and to pico/malloc.h:
+/*
+#include <stdlib.h>
+extern size_t malloc_allocated_bytes;
+extern size_t malloc_peak_bytes;
+extern size_t malloc_allocation_count;
+extern size_t malloc_peak_allocations;
+*/
+
 void sh_repl() {
     uint8_t last_ret = 0;
     while (run) {
@@ -399,10 +427,20 @@ void sh_repl() {
             }
             for (int i = 0; cmd_table[i].name; i++) {
                 if (strcmp(sh_argv[0], cmd_table[i].name) == 0) {
+                    #ifdef TRACE_MALLOC
+                    malloc_allocation_count = 0;
+                    malloc_allocated_bytes = 0;
+                    malloc_peak_allocations = 0;
+                    malloc_peak_bytes = 0;
+                    #endif
                     last_ret = cmd_table[i].func();
                     if (sh_message[0]) {
                         printf("\n%s\n", sh_message);
                     }
+                    #ifdef TRACE_MALLOC
+                    printf("\nmalloc: peak bytes: %i, peak allocations: %i\n", malloc_peak_bytes, malloc_peak_allocations);
+                    // jun 18 2024: 'cc doughnut.c': peak = 53284 bytes
+                    #endif
                     found = true;
                     break;
                 }
