@@ -49,6 +49,7 @@
 #include "cc_parse.h"
 #include "cc_peep.h"
 #include "cc_gen.h"
+#include "cc_help.h"
 
 extern void cc_exit(int rc);                         // C exit function
 extern char __StackLimit[TEXT_BYTES + DATA_BYTES];   // start of code segment
@@ -138,11 +139,6 @@ struct file_handle* file_list UDATA; // file list root
 
 // library help for external functions
 
-struct define_grp {
-    const char* name; // function group name
-    const int val;    // index of 1st function in group
-};
-
 // predefined external functions
 #include "cc_defs.h"
 
@@ -197,37 +193,6 @@ const struct help_grp includes[] = {
 static lfs_file_t* fd UDATA;
 static char* fp UDATA;
 
-// Help display
-
-static void show_defines(const struct define_grp* grp) {
-    if (grp->name == 0) {
-        return;
-    }
-    printf("Predefined symbols:\n\n");
-    int x = term_cols;
-    int y = term_rows;
-    int pos = 0;
-    for (; grp->name; grp++) {
-        if (pos == 0) {
-            pos = strlen(grp->name);
-            printf("%s", grp->name);
-        } else {
-            if (pos + strlen(grp->name) + 2 > x) {
-                pos = strlen(grp->name);
-                printf("\n%s", grp->name);
-            } else {
-                pos += strlen(grp->name) + 2;
-                printf(", %s", grp->name);
-            }
-        }
-    }
-    if (pos) {
-        printf("\n");
-    }
-}
-
-// #include "cc_defs.h"
-
 const struct externs_s externs[] = {
 #include "cc_extrns.h"
 };
@@ -236,79 +201,6 @@ const struct externs_s externs[] = {
 // due to "invalid application of 'sizeof' to incomplete type 'const struct externs_s[]'"
 size_t numof_externs() {
     return numof(externs);
-}
-
-static void show_externals(int i) {
-    printf("Functions:\n\n");
-    int x = term_cols;
-    int y = term_rows;
-    int pos = 0;
-    for (int j = 0; j < numof(externs); j++) {
-        if (externs[j].grp == includes[i].grp) {
-            if (pos == 0) {
-                pos = strlen(externs[j].name);
-                printf("%s", externs[j].name);
-            } else {
-                if (pos + strlen(externs[j].name) + 2 > x) {
-                    pos = strlen(externs[j].name);
-                    printf("\n%s", externs[j].name);
-                } else {
-                    pos += strlen(externs[j].name) + 2;
-                    printf(", %s", externs[j].name);
-                }
-            }
-        }
-    }
-    if (pos) {
-        printf("\n");
-    }
-}
-
-static void help(char* lib) {
-    if (!lib) {
-        printf("Usage: cc [-s] [-u] [-n] [-h [lib]] [-Dsymbol[=integer]]\n"
-               "          [-o exename] filename.c\n"
-               "  -s      display disassembly and quit.\n"
-               "  -o      name of executable output file.\n"
-               "  -u      treat char type as unsigned.\n"
-               "  -n      turn off peep-hole optimization\n"
-               "  -Dsymbol[=integer]\n"
-               "          define symbol for limited pre-processor.\n"
-               "  -h      show compiler help and list libraries.\n"
-               "  -h lib  show available functions and symbols from <lib>.\n"
-               "  filename.c\n"
-               "          C source file name.\n"
-               "\n"
-               "Examples:\n"
-               "  cc hello.c\n"
-               "  cc -DFOO -DBAR=42 hello.c\n"
-               "  cc -h\n"
-               "  cc -h math\n"
-               "\n"
-               "Libraries:\n"
-               "  %s",
-               includes[0]);
-        for (int i = 1; includes[i].name; i++) {
-            printf(", %s", includes[i].name);
-            if ((i % 8) == 0 && includes[i + 1].name) {
-                printf("\n  %s", includes[++i].name);
-            }
-        }
-        printf("\n");
-        return;
-    }
-    for (int i = 0; includes[i].name; i++) {
-        if (!strcmp(lib, includes[i].name)) {
-            show_externals(i);
-            printf("\n");
-            if (includes[i].grp) {
-                show_defines(includes[i].grp);
-            }
-            return;
-        }
-    }
-    fatal("unknown lib %s", lib);
-    return;
 }
 
 static void add_defines(const struct define_grp* d) {
@@ -403,7 +295,7 @@ int cc(int mode, int argc, char** argv) {
                 if (argc) {
                     lib_name = *argv;
                 }
-                help(lib_name);
+                cc_help(lib_name);
                 goto done;
             } else if ((*argv)[1] == 's') {
                 src_opt = 1;
@@ -446,7 +338,7 @@ int cc(int mode, int argc, char** argv) {
         }
         // input file name is mandatory parameter
         if (argc < 1) {
-            help(NULL);
+            cc_help(NULL);
             goto done;
         }
 

@@ -27,6 +27,11 @@
 #define ADJ_BITS 5
 #define ADJ_MASK ((1 << ADJ_BITS) - 1)
 
+struct define_grp {
+    const char* name; // function group name
+    const int val;    // index of 1st function in group
+};
+
 union conv {                                           //
     int i;                                             // integer value
     float f;                                           // floating point value
@@ -166,6 +171,8 @@ struct help_grp {
     const char* name;
     const struct define_grp* grp;
 };
+
+extern const struct help_grp includes[];
 
 // external function table entry
 struct externs_s {
