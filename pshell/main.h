@@ -14,8 +14,8 @@ extern char* sh_argv[];
 extern buf_t sh_pwd;
 
 // Terminal global state:
-extern uint8_t term_cols;
-extern uint8_t term_rows;
+extern uint32_t term_cols;
+extern uint32_t term_rows;
 
 // Filesystem global state:
 extern bool mounted;

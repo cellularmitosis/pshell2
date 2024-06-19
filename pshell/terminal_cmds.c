@@ -15,7 +15,7 @@ uint8_t clear_cmd(void) {
     return 0;
 }
 
-static bool cursor_pos(uint32_t* x, uint32_t* y) {
+bool cursor_pos(uint32_t* x, uint32_t* y) {
     int rc = false;
     *x = 80;
     *y = 24;
@@ -79,25 +79,22 @@ bool screen_size(void) {
     term_cols = 80;
     term_rows = 24;
     uint32_t cur_x, cur_y;
-    uint32_t screen_x, screen_y;
     do {
         set_translate_crlf(false);
         if (!cursor_pos(&cur_x, &cur_y)) {
             break;
         }
         printf(VT_ESC "[999;999H");
-        if (!cursor_pos(&screen_x, &screen_y)) {
+        if (!cursor_pos(&term_cols, &term_rows)) {
             break;
         }
-        if (cur_x > screen_x) {
-            cur_x = screen_x;
+        if (cur_x > term_cols) {
+            cur_x = term_cols;
         }
-        if (cur_y > screen_y) {
-            cur_y = screen_y;
+        if (cur_y > term_rows) {
+            cur_y = term_rows;
         }
         printf("\033[%d;%dH", cur_y, cur_x);
-        term_cols = (uint8_t)cur_x;
-        term_rows = (uint8_t)cur_y;
         fflush(stdout);
         rc = true;
     } while (false);

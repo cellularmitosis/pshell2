@@ -43,8 +43,8 @@ char* sh_argv[MAX_ARGS + 1];
 buf_t sh_pwd = "/";
 
 // Terminal global state.
-uint8_t term_cols = 80;
-uint8_t term_rows = 24;
+uint32_t term_cols = 80;
+uint32_t term_rows = 24;
 
 // Filesystem global state.
 bool mounted = false;
